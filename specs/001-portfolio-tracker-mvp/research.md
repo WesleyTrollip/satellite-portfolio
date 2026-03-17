@@ -46,6 +46,8 @@ MVP runs locally without auth. To keep the path open:
 
 ## Open Questions (for the plan to decide explicitly)
 
-- Should cash be included in “total portfolio value” for allocation and rules? (Default: **yes**.)
-- How to handle negative cash? (Default: disallow by validation, or allow with explicit warning—choose in implementation.)
+**MVP decisions**:
+
+- Cash **is included** in “total portfolio value” for allocation and rules.
+- Negative cash is **disallowed by default** (validation rejects entries that would drive cash below zero). A future spec can add an explicit “allow margin/negative cash” mode, but MVP does not.
 

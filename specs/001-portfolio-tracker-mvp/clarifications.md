@@ -93,10 +93,12 @@ Regardless of method:
 
 #### Editing incorrect trades (required)
 
-Edits must preserve auditability. MVP should implement one of these patterns (choose in plan and enforce consistently):
+Edits must preserve auditability. **MVP choice: reversal + replacement**:
 
-- **Reversal + replacement (preferred)**: mark the original entry as corrected, add an explicit reversing entry, then add a corrected replacement entry; keep links between the entries.
-- **Versioned records**: keep immutable versions of each entry; editing creates a new version; derived state uses “latest active version” with full history preserved.
+- mark the original entry as corrected
+- add an explicit reversing entry
+- add a corrected replacement entry
+- keep links between the entries (e.g., `CorrectionGroupId`)
 
 In all cases:
 - The UI must show that an entry was edited/corrected and why (optional note).

@@ -98,7 +98,7 @@ As a user, I can define portfolio rules and see risk visibility/alerts for posit
 - **FR-002**: System MUST support manual entry of trades: buy and sell, with date/time, symbol, quantity, price, fees, and optional notes.
 - **FR-003**: System MUST support manual entry of cash movements (deposit/withdrawal/adjustment) with date/time, amount, and notes.
 - **FR-004**: System MUST compute holdings per symbol from recorded trades.
-- **FR-005**: System MUST compute cost basis per symbol using an explicit, documented method (default: average cost or FIFO; choose one in plan and cover with tests).
+- **FR-005**: System MUST compute cost basis per symbol using an explicit, documented method. **MVP choice: average cost** (and cover with tests).
 - **FR-006**: System MUST compute realized PnL for sells and unrealized PnL from current prices.
 - **FR-006a**: System MUST support end-of-day price snapshots (no real-time streaming requirement in MVP).
 - **FR-007**: System MUST compute allocation percentages by position and (if sector is provided) by sector.
