@@ -1,50 +1,57 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# Satellite Portfolio Tracker Constitution
+
+This repository builds a single-user satellite portfolio tracker and decision-support platform.
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### 1. Decision support only
+No auto-trading, broker execution, or any workflow that can mutate real brokerage accounts. LLM features are advisory only and must never mutate portfolio state without explicit user action.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### 2. Build incrementally (MVP first)
+Ship the tracker MVP first and iterate. Avoid speculative platform features and keep scope realistic for a single builder.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### 3. Accuracy over flash
+Cost basis, realized/unrealized PnL, allocation %, and auditability are critical. Prefer correctness and clear review workflows over visual complexity.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### 4. Explicit, testable domain rules
+Every domain rule must be explicit, deterministic, and testable. Avoid hidden heuristics or “magic” behavior in calculations and rule evaluation.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### 5. UI optimized for clarity and review
+The UI should optimize for inspection, reconciliation, and review workflows (entries, diffs, history, explanations), not dashboards for their own sake.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### 6. Boring tech, strong typing
+Prefer boring, maintainable technology and strong typing. Optimize for readability, refactorability, and low cognitive overhead.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### 7. Tests required for critical logic
+All critical calculations and domain rules require tests, especially: cost basis, holdings, PnL, allocation %, cash ledger integrity, and rule evaluation.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### 8. Auditability of portfolio changes
+All portfolio changes must be auditable: who/what changed, when, why (optional notes), and before/after values where applicable. No silent mutation.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### 9. Clean architecture boundaries
+Preserve clear separation between API, domain logic, infrastructure, workers, and UI. Domain logic must not depend on UI or infrastructure.
+
+### 10. Advisory LLM features only
+LLM features may summarize, explain, and suggest—but must not directly change portfolio state. Any proposed change must be surfaced as a user reviewable action.
+
+### 11. Single-builder productivity
+Optimize for a single builder: simple workflows, few moving parts, fast feedback loops, and pragmatic tooling.
+
+### 12. Flexible deployment
+Keep deployment flexible: local-first, VPS-friendly, and easy to run with minimal external dependencies.
+
+## Constraints and Non-Goals
+
+- **No auto-trading / execution**: Do not add broker integrations that execute trades or place orders.
+- **No leverage/options/derivatives workflows**: Avoid leverage, options, and derivatives flows unless explicitly specified later.
+- **MVP focus**: Manual trade entry, holdings, cost basis, realized/unrealized PnL, allocation %, cash ledger, journal/thesis records, portfolio rules, and alert visibility.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution is the source of truth for product and engineering decisions. If a spec, plan, task list, or implementation conflicts with these principles, the conflicting work must be revised to comply.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+Amendments must:
+- State the motivation and intended impact.
+- Update relevant specs/plans and include a migration plan if behavior changes.
+
+**Version**: 1.0.0 | **Ratified**: 2026-03-17 | **Last Amended**: 2026-03-17
