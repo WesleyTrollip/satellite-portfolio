@@ -86,6 +86,7 @@ As a user, I can define portfolio rules and see risk visibility/alerts for posit
 
 - Missing/unknown price for a holding: calculations should degrade gracefully (e.g., mark market value as unavailable) without corrupting holdings/cost basis.
 - Selling more than current quantity: the system must prevent the action or require explicit correction (no silent negative holdings).
+- Editing an incorrect trade: the correction must be auditable and derived state must recompute deterministically.
 - Fees/taxes and cash movements that would drive cash negative: behavior must be explicit (reject or allow with clear warning, per later spec/plan).
 - Corporate actions (splits, dividends): out of scope for MVP unless explicitly added later; must not be “partially supported” silently.
 
@@ -93,12 +94,13 @@ As a user, I can define portfolio rules and see risk visibility/alerts for posit
 
 ### Functional Requirements
 
-- **FR-001**: System MUST be single-user and local-first friendly (no multi-tenant assumptions in MVP).
+- **FR-001**: System MUST be single-user, one-portfolio only, and local-first friendly (no multi-tenant assumptions in MVP).
 - **FR-002**: System MUST support manual entry of trades: buy and sell, with date/time, symbol, quantity, price, fees, and optional notes.
 - **FR-003**: System MUST support manual entry of cash movements (deposit/withdrawal/adjustment) with date/time, amount, and notes.
 - **FR-004**: System MUST compute holdings per symbol from recorded trades.
 - **FR-005**: System MUST compute cost basis per symbol using an explicit, documented method (default: average cost or FIFO; choose one in plan and cover with tests).
 - **FR-006**: System MUST compute realized PnL for sells and unrealized PnL from current prices.
+- **FR-006a**: System MUST support end-of-day price snapshots (no real-time streaming requirement in MVP).
 - **FR-007**: System MUST compute allocation percentages by position and (if sector is provided) by sector.
 - **FR-008**: System MUST provide a dashboard showing: positions, cash state, portfolio totals, realized/unrealized PnL, and allocation %.
 - **FR-009**: System MUST provide a trade history view that is filterable/sortable.
@@ -107,6 +109,7 @@ As a user, I can define portfolio rules and see risk visibility/alerts for posit
 - **FR-012**: System MUST support portfolio rules for (at minimum) position size, sector concentration, and drawdown alert thresholds.
 - **FR-013**: System MUST display rule evaluations/alerts as decision-support visibility (no auto-remediation).
 - **FR-014**: System MUST maintain auditability: every portfolio-affecting entry (trade/cash movement/edit/delete) must be recorded with timestamps and before/after values.
+- **FR-014a**: System MUST support editing incorrect trades/cash entries via an auditable correction mechanism (no silent overwrite).
 - **FR-015**: System MUST NOT place trades, submit orders, or integrate broker execution in MVP.
 - **FR-016**: Any AI/LLM capability, if present, MUST be advisory only and MUST NOT mutate portfolio state without explicit user action.
 
