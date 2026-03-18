@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using SatellitePortfolio.Application;
 using SatellitePortfolio.Api;
+using SatellitePortfolio.Domain;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +41,15 @@ builder.Services
     });
 
 builder.Services.AddScoped<IUserContext, LocalUserContext>();
+builder.Services.AddScoped<IInstrumentRepository, InstrumentRepository>();
+builder.Services.AddScoped<ITradeRepository, TradeRepository>();
+builder.Services.AddScoped<ICashLedgerRepository, CashLedgerRepository>();
+builder.Services.AddScoped<IPriceSnapshotRepository, PriceSnapshotRepository>();
+builder.Services.AddScoped<IPortfolioUnitOfWork, PortfolioUnitOfWork>();
+builder.Services.AddScoped<IHoldingsCalculator, HoldingsCalculator>();
+builder.Services.AddScoped<InstrumentService>();
+builder.Services.AddScoped<TradeService>();
+builder.Services.AddScoped<CashLedgerService>();
 
 builder.Services.AddDbContext<SatellitePortfolioDbContext>(options =>
 {
@@ -64,6 +74,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<SatellitePortfolioDbContext>();
+    dbContext.Database.Migrate();
+}
 
 app.MapControllers();
 
