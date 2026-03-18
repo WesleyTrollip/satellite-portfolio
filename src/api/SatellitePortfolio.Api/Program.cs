@@ -1,10 +1,41 @@
-using Microsoft.EntityFrameworkCore;
 using SatellitePortfolio.Infrastructure;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Add services to the container
 builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        context.ProblemDetails.Instance ??= context.HttpContext.Request.Path;
+    };
+});
+
+builder.Services
+    .AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problemDetailsFactory = context.HttpContext.RequestServices
+                .GetRequiredService<ProblemDetailsFactory>();
+
+            var problemDetails = problemDetailsFactory.CreateValidationProblemDetails(
+                context.HttpContext,
+                context.ModelState);
+
+            problemDetails.Status ??= StatusCodes.Status400BadRequest;
+
+            return new ObjectResult(problemDetails)
+            {
+                StatusCode = problemDetails.Status
+            };
+        };
+    });
 
 builder.Services.AddDbContext<SatellitePortfolioDbContext>(options =>
 {
@@ -26,6 +57,11 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
+app.MapControllers();
 
 app.Run();
 
