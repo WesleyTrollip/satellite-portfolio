@@ -27,3 +27,9 @@ Build the tracker first, validate it locally, then use it to support a disciplin
 - Workers: .NET Worker Services
 - Database: PostgreSQL
 - Frontend: Next.js + TypeScript
+
+## Development
+
+- Run tests from the repo root:
+  - `dotnet test`
+  - or `pwsh ./scripts/test.ps1`

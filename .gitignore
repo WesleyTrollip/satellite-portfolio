@@ -1,3 +1,18 @@
-/bin
-/obj
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userprefs
+
+# Build outputs
+**/bin/
+**/obj/
+
+# Environment and local config
 .env
+*.env.local
+
+# Rider / VSCode / misc
+.idea/
+.vscode/
