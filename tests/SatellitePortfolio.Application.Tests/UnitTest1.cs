@@ -171,6 +171,20 @@ internal sealed class InMemoryAlertEventRepository : IAlertEventRepository
 {
     public List<AlertEvent> Items { get; } = [];
 
+    public Task<IReadOnlyCollection<AlertEvent>> ListAsync(DateTime? from, DateTime? to, CancellationToken cancellationToken)
+    {
+        IEnumerable<AlertEvent> query = Items;
+        if (from.HasValue) query = query.Where(x => x.TriggeredAt >= from.Value);
+        if (to.HasValue) query = query.Where(x => x.TriggeredAt <= to.Value);
+        return Task.FromResult<IReadOnlyCollection<AlertEvent>>(query.ToList());
+    }
+
     public Task<IReadOnlyCollection<AlertEvent>> ListCurrentAsync(CancellationToken cancellationToken)
         => Task.FromResult<IReadOnlyCollection<AlertEvent>>(Items.ToList());
+
+    public Task AddRangeAsync(IEnumerable<AlertEvent> alertEvents, CancellationToken cancellationToken)
+    {
+        Items.AddRange(alertEvents);
+        return Task.CompletedTask;
+    }
 }

@@ -94,9 +94,9 @@ export default function TradesPage() {
         </label>
         <label>
           Side
-          <select name="side" defaultValue="Buy">
-            <option value="Buy">Buy</option>
-            <option value="Sell">Sell</option>
+          <select name="side" defaultValue="1">
+            <option value="1">Buy</option>
+            <option value="2">Sell</option>
           </select>
         </label>
         <label>

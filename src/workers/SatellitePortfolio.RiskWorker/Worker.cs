@@ -1,23 +1,28 @@
 namespace SatellitePortfolio.RiskWorker;
 
-public class Worker : BackgroundService
+using SatellitePortfolio.Application;
+
+public class Worker(
+    ILogger<Worker> logger,
+    IServiceScopeFactory scopeFactory) : BackgroundService
 {
-    private readonly ILogger<Worker> _logger;
-
-    public Worker(ILogger<Worker> logger)
-    {
-        _logger = logger;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (_logger.IsEnabled(LogLevel.Information))
+            try
             {
-                _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+                using var scope = scopeFactory.CreateScope();
+                var evaluator = scope.ServiceProvider.GetRequiredService<RiskEvaluationService>();
+                var createdAlerts = await evaluator.EvaluateAndPersistAsync(DateTime.UtcNow, stoppingToken);
+                logger.LogInformation("Risk evaluation completed at {time}, created {count} alerts.", DateTimeOffset.UtcNow, createdAlerts.Count);
             }
-            await Task.Delay(1000, stoppingToken);
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "Risk evaluation failed at {time}.", DateTimeOffset.UtcNow);
+            }
+
+            await Task.Delay(TimeSpan.FromMinutes(15), stoppingToken);
         }
     }
 }

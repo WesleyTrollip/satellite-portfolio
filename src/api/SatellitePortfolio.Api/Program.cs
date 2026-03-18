@@ -47,17 +47,22 @@ builder.Services.AddScoped<ITradeRepository, TradeRepository>();
 builder.Services.AddScoped<ICashLedgerRepository, CashLedgerRepository>();
 builder.Services.AddScoped<IPriceSnapshotRepository, PriceSnapshotRepository>();
 builder.Services.AddScoped<IAlertEventRepository, AlertEventRepository>();
+builder.Services.AddScoped<IPortfolioRuleRepository, PortfolioRuleRepository>();
 builder.Services.AddScoped<IJournalRepository, JournalRepository>();
 builder.Services.AddScoped<IThesisRepository, ThesisRepository>();
 builder.Services.AddScoped<IJournalLinkRepository, JournalLinkRepository>();
 builder.Services.AddScoped<IPortfolioUnitOfWork, PortfolioUnitOfWork>();
 builder.Services.AddScoped<IHoldingsCalculator, HoldingsCalculator>();
+builder.Services.AddScoped<IPortfolioRuleEvaluator, PortfolioRuleEvaluator>();
 builder.Services.AddScoped<InstrumentService>();
 builder.Services.AddScoped<TradeService>();
 builder.Services.AddScoped<CashLedgerService>();
 builder.Services.AddScoped<PortfolioQueryService>();
 builder.Services.AddScoped<JournalService>();
 builder.Services.AddScoped<ThesisService>();
+builder.Services.AddScoped<RuleService>();
+builder.Services.AddScoped<AlertService>();
+builder.Services.AddScoped<RiskEvaluationService>();
 
 builder.Services.AddDbContext<SatellitePortfolioDbContext>(options =>
 {
