@@ -2,6 +2,8 @@ using SatellitePortfolio.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using SatellitePortfolio.Application;
+using SatellitePortfolio.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +38,8 @@ builder.Services
             };
         };
     });
+
+builder.Services.AddScoped<IUserContext, LocalUserContext>();
 
 builder.Services.AddDbContext<SatellitePortfolioDbContext>(options =>
 {
