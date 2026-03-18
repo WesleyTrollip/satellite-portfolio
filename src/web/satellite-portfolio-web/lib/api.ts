@@ -26,6 +26,20 @@ export type PortfolioOverviewView = {
   currentAlerts: { alertEventId: string; severity: string; title: string; triggeredAt: string }[];
 };
 
+export type MonthlyPortfolioStateView = {
+  year: number;
+  month: number;
+  asOf: string;
+  cashBalance: number;
+  totalMarketValue: number;
+  portfolioValue: number;
+  totalCost: number;
+  realizedPnl: number;
+  unrealizedPnl: number;
+  holdings: HoldingView[];
+  sectorAllocations: { sector: string; allocationPercent: number }[];
+};
+
 export async function getOverview(): Promise<PortfolioOverviewView> {
   const response = await fetch(`${API_BASE_URL}/portfolio/overview`, { cache: "no-store" });
   if (!response.ok) {
@@ -48,6 +62,15 @@ export async function getTrades(): Promise<Array<Record<string, unknown>>> {
   const response = await fetch(`${API_BASE_URL}/trades`, { cache: "no-store" });
   if (!response.ok) {
     throw new Error("Failed to load trades.");
+  }
+
+  return response.json();
+}
+
+export async function getMonthlyState(year: number, month: number): Promise<MonthlyPortfolioStateView> {
+  const response = await fetch(`${API_BASE_URL}/portfolio/monthly?year=${year}&month=${month}`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Failed to load monthly state.");
   }
 
   return response.json();

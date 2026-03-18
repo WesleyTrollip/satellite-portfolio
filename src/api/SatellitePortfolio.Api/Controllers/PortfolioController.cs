@@ -15,5 +15,15 @@ public sealed class PortfolioController(PortfolioQueryService queryService) : Co
         var overview = await queryService.GetOverviewAsync(asOf, cancellationToken);
         return Ok(overview);
     }
+
+    [HttpGet("monthly")]
+    public async Task<ActionResult<MonthlyPortfolioStateView>> Monthly(
+        [FromQuery] int year,
+        [FromQuery] int month,
+        CancellationToken cancellationToken)
+    {
+        var monthly = await queryService.GetMonthlyStateAsync(year, month, cancellationToken);
+        return Ok(monthly);
+    }
 }
 

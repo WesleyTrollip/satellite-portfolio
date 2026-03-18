@@ -39,6 +39,19 @@ public sealed record PortfolioOverviewView(
     IReadOnlyCollection<SectorAllocationView> SectorAllocations,
     IReadOnlyCollection<AlertView> CurrentAlerts);
 
+public sealed record MonthlyPortfolioStateView(
+    int Year,
+    int Month,
+    DateTime AsOf,
+    decimal CashBalance,
+    decimal TotalMarketValue,
+    decimal PortfolioValue,
+    decimal TotalCost,
+    decimal RealizedPnl,
+    decimal UnrealizedPnl,
+    IReadOnlyCollection<HoldingView> Holdings,
+    IReadOnlyCollection<SectorAllocationView> SectorAllocations);
+
 public sealed class PortfolioQueryService(
     IInstrumentRepository instruments,
     ITradeRepository trades,
@@ -99,6 +112,37 @@ public sealed class PortfolioQueryService(
     {
         var holdings = await GetHoldingsAsync(asOf, cancellationToken);
         return holdings.SingleOrDefault(x => x.InstrumentId == instrumentId.Value);
+    }
+
+    public async Task<MonthlyPortfolioStateView> GetMonthlyStateAsync(int year, int month, CancellationToken cancellationToken)
+    {
+        if (month is < 1 or > 12)
+        {
+            throw new InvalidOperationException("Month must be between 1 and 12.");
+        }
+
+        var asOf = new DateTime(year, month, DateTime.DaysInMonth(year, month), 23, 59, 59, DateTimeKind.Utc);
+        var allInstruments = await instruments.ListAsync(cancellationToken);
+        var allTrades = await trades.ListAllAsync(cancellationToken);
+        var allCash = await cashEntries.ListAllAsync(cancellationToken);
+        var allPrices = await prices.ListAllAsync(cancellationToken);
+
+        var snapshot = holdingsCalculator.CalculateSnapshot(allTrades, allCash, allPrices, asOf);
+        var holdings = MapHoldings(snapshot.Holdings, allInstruments);
+        var sectorAllocations = BuildSectorAllocations(holdings);
+
+        return new MonthlyPortfolioStateView(
+            year,
+            month,
+            asOf,
+            snapshot.Totals.CashBalance.Amount,
+            snapshot.Totals.TotalMarketValue.Amount,
+            snapshot.Totals.TotalMarketValue.Amount + snapshot.Totals.CashBalance.Amount,
+            snapshot.Totals.TotalCost.Amount,
+            snapshot.Totals.TotalRealizedPnl.Amount,
+            snapshot.Totals.TotalUnrealizedPnl.Amount,
+            holdings,
+            sectorAllocations);
     }
 
     private static List<HoldingView> MapHoldings(IEnumerable<Holding> holdings, IReadOnlyCollection<Instrument> instruments)

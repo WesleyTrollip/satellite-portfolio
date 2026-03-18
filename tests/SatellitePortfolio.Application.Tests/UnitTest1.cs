@@ -74,6 +74,32 @@ public class TradeAndCashServicesTests
                 new CreateTradeRequest(instrumentId, TradeSide.Sell, 1m, 100m, 0m, DateTime.UtcNow, "invalid"),
                 CancellationToken.None));
     }
+
+    [Fact]
+    public async Task TradeHistory_IncludesCorrectionEntries()
+    {
+        var instrumentId = new InstrumentId(Guid.NewGuid());
+        var trades = new InMemoryTradeRepository();
+        var cash = new InMemoryCashLedgerRepository();
+        var prices = new InMemoryPriceSnapshotRepository();
+        var unitOfWork = new InMemoryUnitOfWork();
+        var calculator = new HoldingsCalculator();
+        var tradeService = new TradeService(trades, cash, prices, unitOfWork, calculator);
+
+        var original = await tradeService.CreateAsync(
+            new CreateTradeRequest(instrumentId, TradeSide.Buy, 2m, 100m, 0m, DateTime.UtcNow.AddMinutes(-2), "original"),
+            CancellationToken.None);
+
+        await tradeService.CorrectAsync(
+            original.Id,
+            new CreateTradeCorrectionRequest(2m, 101m, 0m, DateTime.UtcNow.AddMinutes(-1), "replacement", "price typo"),
+            CancellationToken.None);
+
+        var history = await tradeService.ListAsync(null, null, null, CancellationToken.None);
+        Assert.Equal(3, history.Count);
+        Assert.Contains(history, x => x.Id == original.Id);
+        Assert.Equal(2, history.Count(x => x.CorrectionGroupId.HasValue));
+    }
 }
 
 internal sealed class InMemoryTradeRepository : ITradeRepository
@@ -139,4 +165,12 @@ internal sealed class InMemoryUnitOfWork : IPortfolioUnitOfWork
 {
     public Task SaveChangesAsync(CancellationToken cancellationToken)
         => Task.CompletedTask;
+}
+
+internal sealed class InMemoryAlertEventRepository : IAlertEventRepository
+{
+    public List<AlertEvent> Items { get; } = [];
+
+    public Task<IReadOnlyCollection<AlertEvent>> ListCurrentAsync(CancellationToken cancellationToken)
+        => Task.FromResult<IReadOnlyCollection<AlertEvent>>(Items.ToList());
 }

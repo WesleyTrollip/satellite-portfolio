@@ -111,6 +111,69 @@ public class PortfolioQueryServiceTests
         Assert.NotNull(holding.MissingPriceExplanation);
     }
 
+    [Fact]
+    public async Task MonthlyState_UsesMonthEndAsOfAcrossBoundaries()
+    {
+        var instrumentId = new InstrumentId(Guid.NewGuid());
+        var instruments = new InMemoryInstrumentRepository();
+        instruments.Items.Add(new Instrument
+        {
+            Id = instrumentId,
+            PortfolioId = new PortfolioId(Guid.NewGuid()),
+            Symbol = "NVDA",
+            Currency = "EUR",
+            CreatedAt = DateTime.UtcNow
+        });
+
+        var trades = new InMemoryTradeRepository();
+        trades.Items.Add(new Trade
+        {
+            Id = new TradeId(Guid.NewGuid()),
+            PortfolioId = new PortfolioId(Guid.NewGuid()),
+            InstrumentId = instrumentId,
+            Side = TradeSide.Buy,
+            Quantity = 5m,
+            PriceAmount = 50m,
+            FeesAmount = 0m,
+            ExecutedAt = new DateTime(2026, 1, 15, 12, 0, 0, DateTimeKind.Utc),
+            CreatedAt = DateTime.UtcNow
+        });
+
+        var prices = new InMemoryPriceSnapshotRepository();
+        prices.Items.Add(new PriceSnapshot
+        {
+            Id = new PriceSnapshotId(Guid.NewGuid()),
+            InstrumentId = instrumentId,
+            Date = new DateOnly(2026, 1, 31),
+            ClosePriceAmount = 55m,
+            Source = PriceSnapshotSource.Manual,
+            CreatedAt = DateTime.UtcNow
+        });
+        prices.Items.Add(new PriceSnapshot
+        {
+            Id = new PriceSnapshotId(Guid.NewGuid()),
+            InstrumentId = instrumentId,
+            Date = new DateOnly(2026, 2, 28),
+            ClosePriceAmount = 70m,
+            Source = PriceSnapshotSource.Manual,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        var queryService = new PortfolioQueryService(
+            instruments,
+            trades,
+            new InMemoryCashLedgerRepository(),
+            prices,
+            new InMemoryAlertEventRepository(),
+            new HoldingsCalculator());
+
+        var january = await queryService.GetMonthlyStateAsync(2026, 1, CancellationToken.None);
+        var february = await queryService.GetMonthlyStateAsync(2026, 2, CancellationToken.None);
+
+        Assert.Equal(275m, january.TotalMarketValue);
+        Assert.Equal(350m, february.TotalMarketValue);
+    }
+
 }
 
 internal sealed class InMemoryInstrumentRepository : IInstrumentRepository

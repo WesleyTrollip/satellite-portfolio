@@ -1,7 +1,9 @@
-import { getOverview } from "../lib/api";
+import { getMonthlyState, getOverview } from "../lib/api";
 
 export default async function OverviewPage() {
   const overview = await getOverview();
+  const now = new Date();
+  const monthlyState = await getMonthlyState(now.getUTCFullYear(), now.getUTCMonth() + 1);
 
   return (
     <section>
@@ -27,6 +29,13 @@ export default async function OverviewPage() {
           ))}
         </ul>
       )}
+
+      <h2>Month-End Snapshot</h2>
+      <ul>
+        <li>As of: {new Date(monthlyState.asOf).toLocaleString()}</li>
+        <li>Portfolio value: {monthlyState.portfolioValue.toFixed(2)} EUR</li>
+        <li>Cash balance: {monthlyState.cashBalance.toFixed(2)} EUR</li>
+      </ul>
 
     </section>
   );
