@@ -1,6 +1,5 @@
-﻿namespace SatellitePortfolio.Application;
+namespace SatellitePortfolio.Application;
 
-public class Class1
+public static class ApplicationAssemblyMarker
 {
-
 }
