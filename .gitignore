@@ -8,6 +8,8 @@ obj/
 # Build outputs
 **/bin/
 **/obj/
+**/.next/
+**/node_modules/
 
 # Environment and local config
 .env
