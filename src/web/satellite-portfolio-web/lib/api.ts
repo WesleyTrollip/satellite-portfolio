@@ -13,6 +13,42 @@ export type HoldingView = {
   missingPriceExplanation: string | null;
 };
 
+export type JournalEntryView = {
+  entry: {
+    id: { value: string } | string;
+    occurredAt: string;
+    title: string;
+    body: string;
+    tags: string | null;
+  };
+  thesisIds: string[];
+  instrumentIds: string[];
+};
+
+export type ThesisView = {
+  id: { value: string } | string;
+  title: string;
+  body: string;
+  status: string;
+  instrumentId?: { value: string } | string | null;
+};
+
+export type RuleView = {
+  id: { value: string } | string;
+  type: string;
+  enabled: boolean;
+  parametersJson: string;
+};
+
+export type AlertEventView = {
+  id: { value: string } | string;
+  ruleId: { value: string } | string;
+  severity: string;
+  title: string;
+  triggeredAt: string;
+  detailsJson: string;
+};
+
 export type PortfolioOverviewView = {
   asOf: string;
   cashBalance: number;
@@ -71,6 +107,42 @@ export async function getMonthlyState(year: number, month: number): Promise<Mont
   const response = await fetch(`${API_BASE_URL}/portfolio/monthly?year=${year}&month=${month}`, { cache: "no-store" });
   if (!response.ok) {
     throw new Error("Failed to load monthly state.");
+  }
+
+  return response.json();
+}
+
+export async function getJournalEntries(): Promise<JournalEntryView[]> {
+  const response = await fetch(`${API_BASE_URL}/journal`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Failed to load journal entries.");
+  }
+
+  return response.json();
+}
+
+export async function getTheses(): Promise<ThesisView[]> {
+  const response = await fetch(`${API_BASE_URL}/theses`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Failed to load theses.");
+  }
+
+  return response.json();
+}
+
+export async function getRules(): Promise<RuleView[]> {
+  const response = await fetch(`${API_BASE_URL}/rules`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Failed to load rules.");
+  }
+
+  return response.json();
+}
+
+export async function getCurrentAlerts(): Promise<AlertEventView[]> {
+  const response = await fetch(`${API_BASE_URL}/alerts/current`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Failed to load current alerts.");
   }
 
   return response.json();

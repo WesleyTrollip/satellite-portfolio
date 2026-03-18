@@ -1,7 +1,25 @@
-import { getHoldings } from "../../lib/api";
+import { getHoldings, getTheses } from "../../lib/api";
 
 export default async function HoldingsPage() {
-  const holdings = await getHoldings();
+  const [holdings, theses] = await Promise.all([getHoldings(), getTheses()]);
+
+  const thesisByInstrumentId = theses.reduce<Record<string, string[]>>((accumulator, thesis) => {
+    const rawInstrumentId = thesis.instrumentId;
+    const instrumentId =
+      rawInstrumentId == null
+        ? null
+        : typeof rawInstrumentId === "string"
+          ? rawInstrumentId
+          : rawInstrumentId.value;
+
+    if (!instrumentId) {
+      return accumulator;
+    }
+
+    accumulator[instrumentId] ??= [];
+    accumulator[instrumentId].push(thesis.title);
+    return accumulator;
+  }, {});
 
   return (
     <section>
@@ -16,6 +34,7 @@ export default async function HoldingsPage() {
             <th align="right">Unrealized PnL</th>
             <th align="right">Allocation</th>
             <th align="left">Pricing</th>
+            <th align="left">Linked Theses</th>
           </tr>
         </thead>
         <tbody>
@@ -28,6 +47,7 @@ export default async function HoldingsPage() {
               <td align="right">{holding.unrealizedPnl.toFixed(2)}</td>
               <td align="right">{(holding.allocationPercent * 100).toFixed(2)}%</td>
               <td>{holding.missingPrice ? holding.missingPriceExplanation : "OK"}</td>
+              <td>{(thesisByInstrumentId[holding.instrumentId] ?? []).join(", ") || "-"}</td>
             </tr>
           ))}
         </tbody>
