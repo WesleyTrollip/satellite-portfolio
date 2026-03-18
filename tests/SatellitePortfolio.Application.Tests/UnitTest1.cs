@@ -157,8 +157,41 @@ internal sealed class InMemoryPriceSnapshotRepository : IPriceSnapshotRepository
 {
     public List<PriceSnapshot> Items { get; } = [];
 
+    public Task<IReadOnlyCollection<PriceSnapshot>> ListAsync(
+        InstrumentId? instrumentId,
+        DateOnly? from,
+        DateOnly? to,
+        CancellationToken cancellationToken)
+    {
+        IEnumerable<PriceSnapshot> query = Items;
+        if (instrumentId.HasValue) query = query.Where(x => x.InstrumentId == instrumentId.Value);
+        if (from.HasValue) query = query.Where(x => x.Date >= from.Value);
+        if (to.HasValue) query = query.Where(x => x.Date <= to.Value);
+        return Task.FromResult<IReadOnlyCollection<PriceSnapshot>>(query.ToList());
+    }
+
     public Task<IReadOnlyCollection<PriceSnapshot>> ListAllAsync(CancellationToken cancellationToken)
         => Task.FromResult<IReadOnlyCollection<PriceSnapshot>>(Items.ToList());
+
+    public Task<PriceSnapshot?> GetByInstrumentAndDateAsync(InstrumentId instrumentId, DateOnly date, CancellationToken cancellationToken)
+        => Task.FromResult(Items.SingleOrDefault(x => x.InstrumentId == instrumentId && x.Date == date));
+
+    public Task AddAsync(PriceSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        Items.Add(snapshot);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(PriceSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        var index = Items.FindIndex(x => x.Id == snapshot.Id);
+        if (index >= 0)
+        {
+            Items[index] = snapshot;
+        }
+
+        return Task.CompletedTask;
+    }
 }
 
 internal sealed class InMemoryUnitOfWork : IPortfolioUnitOfWork

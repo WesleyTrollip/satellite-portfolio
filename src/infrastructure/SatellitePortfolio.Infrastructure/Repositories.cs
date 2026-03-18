@@ -98,8 +98,48 @@ public sealed class CashLedgerRepository(SatellitePortfolioDbContext dbContext) 
 
 public sealed class PriceSnapshotRepository(SatellitePortfolioDbContext dbContext) : IPriceSnapshotRepository
 {
+    public async Task<IReadOnlyCollection<PriceSnapshot>> ListAsync(
+        InstrumentId? instrumentId,
+        DateOnly? from,
+        DateOnly? to,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.PriceSnapshots.AsQueryable();
+        if (instrumentId.HasValue)
+        {
+            query = query.Where(x => x.InstrumentId == instrumentId.Value);
+        }
+
+        if (from.HasValue)
+        {
+            query = query.Where(x => x.Date >= from.Value);
+        }
+
+        if (to.HasValue)
+        {
+            query = query.Where(x => x.Date <= to.Value);
+        }
+
+        return await query
+            .OrderBy(x => x.InstrumentId)
+            .ThenByDescending(x => x.Date)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<PriceSnapshot>> ListAllAsync(CancellationToken cancellationToken)
         => await dbContext.PriceSnapshots.ToListAsync(cancellationToken);
+
+    public Task<PriceSnapshot?> GetByInstrumentAndDateAsync(InstrumentId instrumentId, DateOnly date, CancellationToken cancellationToken)
+        => dbContext.PriceSnapshots.SingleOrDefaultAsync(x => x.InstrumentId == instrumentId && x.Date == date, cancellationToken);
+
+    public async Task AddAsync(PriceSnapshot snapshot, CancellationToken cancellationToken)
+        => await dbContext.PriceSnapshots.AddAsync(snapshot, cancellationToken);
+
+    public Task UpdateAsync(PriceSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        dbContext.PriceSnapshots.Update(snapshot);
+        return Task.CompletedTask;
+    }
 }
 
 public sealed class JournalRepository(SatellitePortfolioDbContext dbContext) : IJournalRepository

@@ -28,7 +28,11 @@ public interface ICashLedgerRepository
 
 public interface IPriceSnapshotRepository
 {
+    Task<IReadOnlyCollection<PriceSnapshot>> ListAsync(InstrumentId? instrumentId, DateOnly? from, DateOnly? to, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<PriceSnapshot>> ListAllAsync(CancellationToken cancellationToken);
+    Task<PriceSnapshot?> GetByInstrumentAndDateAsync(InstrumentId instrumentId, DateOnly date, CancellationToken cancellationToken);
+    Task AddAsync(PriceSnapshot snapshot, CancellationToken cancellationToken);
+    Task UpdateAsync(PriceSnapshot snapshot, CancellationToken cancellationToken);
 }
 
 public interface IJournalRepository

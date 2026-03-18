@@ -58,6 +58,7 @@ builder.Services.AddScoped<InstrumentService>();
 builder.Services.AddScoped<TradeService>();
 builder.Services.AddScoped<CashLedgerService>();
 builder.Services.AddScoped<PortfolioQueryService>();
+builder.Services.AddScoped<PriceSnapshotService>();
 builder.Services.AddScoped<JournalService>();
 builder.Services.AddScoped<ThesisService>();
 builder.Services.AddScoped<RuleService>();

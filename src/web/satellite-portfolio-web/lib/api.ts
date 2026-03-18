@@ -49,6 +49,14 @@ export type AlertEventView = {
   detailsJson: string;
 };
 
+export type PriceSnapshotView = {
+  id: { value: string } | string;
+  instrumentId: { value: string } | string;
+  date: string;
+  closePriceAmount: number;
+  source: string;
+};
+
 export type PortfolioOverviewView = {
   asOf: string;
   cashBalance: number;
@@ -143,6 +151,16 @@ export async function getCurrentAlerts(): Promise<AlertEventView[]> {
   const response = await fetch(`${API_BASE_URL}/alerts/current`, { cache: "no-store" });
   if (!response.ok) {
     throw new Error("Failed to load current alerts.");
+  }
+
+  return response.json();
+}
+
+export async function getPriceSnapshots(instrumentId?: string): Promise<PriceSnapshotView[]> {
+  const query = instrumentId ? `?instrumentId=${instrumentId}` : "";
+  const response = await fetch(`${API_BASE_URL}/prices/snapshots${query}`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Failed to load price snapshots.");
   }
 
   return response.json();

@@ -14,6 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <a href="/" style={{ color: "#93c5fd" }}>Overview</a>
             <a href="/holdings" style={{ color: "#93c5fd" }}>Holdings</a>
             <a href="/trades" style={{ color: "#93c5fd" }}>Trades</a>
+            <a href="/prices" style={{ color: "#93c5fd" }}>Prices</a>
             <a href="/journal" style={{ color: "#93c5fd" }}>Journal</a>
             <a href="/rules" style={{ color: "#93c5fd" }}>Rules</a>
           </nav>
