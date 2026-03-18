@@ -31,6 +31,11 @@ public interface IPriceSnapshotRepository
     Task<IReadOnlyCollection<PriceSnapshot>> ListAllAsync(CancellationToken cancellationToken);
 }
 
+public interface IAlertEventRepository
+{
+    Task<IReadOnlyCollection<AlertEvent>> ListCurrentAsync(CancellationToken cancellationToken);
+}
+
 public interface IPortfolioUnitOfWork
 {
     Task SaveChangesAsync(CancellationToken cancellationToken);

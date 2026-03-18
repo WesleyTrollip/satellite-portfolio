@@ -46,11 +46,13 @@ builder.Services.AddScoped<IInstrumentRepository, InstrumentRepository>();
 builder.Services.AddScoped<ITradeRepository, TradeRepository>();
 builder.Services.AddScoped<ICashLedgerRepository, CashLedgerRepository>();
 builder.Services.AddScoped<IPriceSnapshotRepository, PriceSnapshotRepository>();
+builder.Services.AddScoped<IAlertEventRepository, AlertEventRepository>();
 builder.Services.AddScoped<IPortfolioUnitOfWork, PortfolioUnitOfWork>();
 builder.Services.AddScoped<IHoldingsCalculator, HoldingsCalculator>();
 builder.Services.AddScoped<InstrumentService>();
 builder.Services.AddScoped<TradeService>();
 builder.Services.AddScoped<CashLedgerService>();
+builder.Services.AddScoped<PortfolioQueryService>();
 
 builder.Services.AddDbContext<SatellitePortfolioDbContext>(options =>
 {

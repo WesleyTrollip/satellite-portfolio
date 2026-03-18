@@ -102,6 +102,21 @@ public sealed class PriceSnapshotRepository(SatellitePortfolioDbContext dbContex
         => await dbContext.PriceSnapshots.ToListAsync(cancellationToken);
 }
 
+public sealed class AlertEventRepository(SatellitePortfolioDbContext dbContext) : IAlertEventRepository
+{
+    public async Task<IReadOnlyCollection<AlertEvent>> ListCurrentAsync(CancellationToken cancellationToken)
+    {
+        var latestPerRule = await dbContext.AlertEvents
+            .GroupBy(x => x.RuleId)
+            .Select(g => g
+                .OrderByDescending(x => x.TriggeredAt)
+                .First())
+            .ToListAsync(cancellationToken);
+
+        return latestPerRule;
+    }
+}
+
 public sealed class PortfolioUnitOfWork(SatellitePortfolioDbContext dbContext) : IPortfolioUnitOfWork
 {
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
