@@ -49,3 +49,27 @@ export function StatusMessage({ message }: { message: string }) {
 export function EmptyState({ message }: { message: string }) {
   return <p className="muted">{message}</p>;
 }
+
+type FieldLabelProps = {
+  htmlFor: string;
+  label: string;
+  tooltip: string;
+};
+
+export function FieldLabel({ htmlFor, label, tooltip }: FieldLabelProps) {
+  return (
+    <div className="label-row">
+      <label htmlFor={htmlFor} className="label mb-0">
+        {label}
+      </label>
+      <span className="field-tooltip">
+        <button type="button" className="field-tooltip-trigger" aria-label={`${label} help`}>
+          ?
+        </button>
+        <span role="tooltip" className="field-tooltip-content">
+          {tooltip}
+        </span>
+      </span>
+    </div>
+  );
+}

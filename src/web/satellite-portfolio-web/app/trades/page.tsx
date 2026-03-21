@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { CardSection, EmptyState, PageHeader, StatusMessage } from "../components/ui";
+import { CardSection, EmptyState, FieldLabel, PageHeader, StatusMessage } from "../components/ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5014/api";
 
@@ -150,9 +150,11 @@ export default function TradesPage() {
         <CardSection title="Create Trade">
           <form onSubmit={submitTrade} className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="trade-instrument-id" className="label">
-                Instrument ID
-              </label>
+              <FieldLabel
+                htmlFor="trade-instrument-id"
+                label="Instrument ID"
+                tooltip="Unique GUID of the instrument being traded. Example: 3f8f0d76-1b4a-4cde-9a37-0b9e9d2f4c12"
+              />
               <input
                 id="trade-instrument-id"
                 className="input"
@@ -162,42 +164,54 @@ export default function TradesPage() {
               />
             </div>
             <div>
-              <label htmlFor="trade-side" className="label">
-                Side
-              </label>
+              <FieldLabel
+                htmlFor="trade-side"
+                label="Side"
+                tooltip="Trade direction. Buy increases position and Sell reduces position. Example: Buy"
+              />
               <select id="trade-side" name="side" defaultValue="1" className="input">
                 <option value="1">Buy</option>
                 <option value="2">Sell</option>
               </select>
             </div>
             <div>
-              <label htmlFor="trade-quantity" className="label">
-                Quantity
-              </label>
+              <FieldLabel
+                htmlFor="trade-quantity"
+                label="Quantity"
+                tooltip="Number of units traded. Must be greater than zero. Example: 10.5"
+              />
               <input id="trade-quantity" name="quantity" type="number" step="0.0001" className="input" required />
             </div>
             <div>
-              <label htmlFor="trade-price" className="label">
-                Price
-              </label>
+              <FieldLabel
+                htmlFor="trade-price"
+                label="Price"
+                tooltip="Per-unit execution price in instrument currency. Example: 185.42"
+              />
               <input id="trade-price" name="priceAmount" type="number" step="0.01" className="input" required />
             </div>
             <div>
-              <label htmlFor="trade-fees" className="label">
-                Fees
-              </label>
+              <FieldLabel
+                htmlFor="trade-fees"
+                label="Fees"
+                tooltip="Total fees or commission for this trade. Use 0 when there are none. Example: 1.25"
+              />
               <input id="trade-fees" name="feesAmount" type="number" step="0.01" defaultValue="0" className="input" />
             </div>
             <div>
-              <label htmlFor="trade-executed-at" className="label">
-                Executed At (UTC)
-              </label>
+              <FieldLabel
+                htmlFor="trade-executed-at"
+                label="Executed At (UTC)"
+                tooltip="Date and time when the trade was executed. Example: 2026-03-21T14:30"
+              />
               <input id="trade-executed-at" name="executedAt" type="datetime-local" className="input" required />
             </div>
             <div className="sm:col-span-2">
-              <label htmlFor="trade-notes" className="label">
-                Notes
-              </label>
+              <FieldLabel
+                htmlFor="trade-notes"
+                label="Notes"
+                tooltip="Optional context for the trade. Example: Partial fill completed in two lots"
+              />
               <input id="trade-notes" name="notes" className="input" />
             </div>
             <div className="sm:col-span-2">
@@ -211,9 +225,11 @@ export default function TradesPage() {
         <CardSection title="Correct Trade">
           <form onSubmit={submitCorrection} className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="correction-trade-id" className="label">
-                Trade ID
-              </label>
+              <FieldLabel
+                htmlFor="correction-trade-id"
+                label="Trade ID"
+                tooltip="GUID of the existing trade to correct. Example: 7e6af4b0-3d32-4c9a-89a4-9d4b4f9270d8"
+              />
               <input
                 id="correction-trade-id"
                 className="input"
@@ -223,27 +239,35 @@ export default function TradesPage() {
               />
             </div>
             <div>
-              <label htmlFor="correction-quantity" className="label">
-                Quantity
-              </label>
+              <FieldLabel
+                htmlFor="correction-quantity"
+                label="Quantity"
+                tooltip="Replacement quantity for the corrected trade. Example: 9.75"
+              />
               <input id="correction-quantity" name="quantity" type="number" step="0.0001" className="input" required />
             </div>
             <div>
-              <label htmlFor="correction-price" className="label">
-                Price
-              </label>
+              <FieldLabel
+                htmlFor="correction-price"
+                label="Price"
+                tooltip="Replacement per-unit execution price. Example: 184.95"
+              />
               <input id="correction-price" name="priceAmount" type="number" step="0.01" className="input" required />
             </div>
             <div>
-              <label htmlFor="correction-fees" className="label">
-                Fees
-              </label>
+              <FieldLabel
+                htmlFor="correction-fees"
+                label="Fees"
+                tooltip="Replacement total fees for this corrected trade. Example: 1.00"
+              />
               <input id="correction-fees" name="feesAmount" type="number" step="0.01" defaultValue="0" className="input" />
             </div>
             <div>
-              <label htmlFor="correction-executed-at" className="label">
-                Executed At (UTC)
-              </label>
+              <FieldLabel
+                htmlFor="correction-executed-at"
+                label="Executed At (UTC)"
+                tooltip="Replacement execution timestamp for the corrected trade. Example: 2026-03-21T14:30"
+              />
               <input
                 id="correction-executed-at"
                 name="executedAt"
@@ -253,15 +277,19 @@ export default function TradesPage() {
               />
             </div>
             <div>
-              <label htmlFor="correction-reason" className="label">
-                Reason
-              </label>
+              <FieldLabel
+                htmlFor="correction-reason"
+                label="Reason"
+                tooltip="Required audit reason for this correction. Example: Broker confirmed wrong fill quantity"
+              />
               <input id="correction-reason" name="reason" className="input" required />
             </div>
             <div className="sm:col-span-2">
-              <label htmlFor="correction-notes" className="label">
-                Notes
-              </label>
+              <FieldLabel
+                htmlFor="correction-notes"
+                label="Notes"
+                tooltip="Optional additional context to store with the correction. Example: Ticket #BRK-18423"
+              />
               <input id="correction-notes" name="notes" className="input" />
             </div>
             <div className="sm:col-span-2">

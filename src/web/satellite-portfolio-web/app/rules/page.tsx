@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { AlertEventView, getCurrentAlerts, getRules, RuleView } from "../../lib/api";
-import { CardSection, EmptyState, PageHeader, StatusMessage } from "../components/ui";
+import { CardSection, EmptyState, FieldLabel, PageHeader, StatusMessage } from "../components/ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5014/api";
 
@@ -80,9 +80,11 @@ export default function RulesPage() {
         <CardSection title="Create Rule">
           <form onSubmit={createRule} className="grid gap-4">
             <div>
-              <label htmlFor="rule-create-type" className="label">
-                Type
-              </label>
+              <FieldLabel
+                htmlFor="rule-create-type"
+                label="Type"
+                tooltip="Rule category to enforce. Example: MaxPositionSize"
+              />
               <select id="rule-create-type" name="type" defaultValue="1" className="input">
                 <option value="1">MaxPositionSize</option>
                 <option value="2">MaxSectorConcentration</option>
@@ -91,14 +93,18 @@ export default function RulesPage() {
             </div>
             <div className="flex items-center gap-2">
               <input id="rule-create-enabled" name="enabled" type="checkbox" defaultChecked className="h-4 w-4 rounded border-border" />
-              <label htmlFor="rule-create-enabled" className="label mb-0">
-                Enabled
-              </label>
+              <FieldLabel
+                htmlFor="rule-create-enabled"
+                label="Enabled"
+                tooltip="Turn this on to evaluate and trigger alerts. Example: Checked"
+              />
             </div>
             <div>
-              <label htmlFor="rule-create-parameters" className="label">
-                Parameters JSON
-              </label>
+              <FieldLabel
+                htmlFor="rule-create-parameters"
+                label="Parameters JSON"
+                tooltip='JSON configuration for the selected rule type. Example: {"maxPct":0.10}'
+              />
               <input id="rule-create-parameters" name="parametersJson" defaultValue='{"maxPct":0.10}' className="input" />
             </div>
             <div>
@@ -112,9 +118,11 @@ export default function RulesPage() {
         <CardSection title="Update Rule">
           <form onSubmit={updateRule} className="grid gap-4">
             <div>
-              <label htmlFor="rule-update-id" className="label">
-                Rule ID
-              </label>
+              <FieldLabel
+                htmlFor="rule-update-id"
+                label="Rule ID"
+                tooltip="GUID of an existing rule to update. Example: 9d8fd5ef-157c-44d4-88ac-4381e5d02fa4"
+              />
               <input
                 id="rule-update-id"
                 className="input"
@@ -123,9 +131,11 @@ export default function RulesPage() {
               />
             </div>
             <div>
-              <label htmlFor="rule-update-type" className="label">
-                Type
-              </label>
+              <FieldLabel
+                htmlFor="rule-update-type"
+                label="Type"
+                tooltip="Rule category for the updated rule definition. Example: MaxDrawdown"
+              />
               <select id="rule-update-type" name="type" defaultValue="1" className="input">
                 <option value="1">MaxPositionSize</option>
                 <option value="2">MaxSectorConcentration</option>
@@ -134,14 +144,18 @@ export default function RulesPage() {
             </div>
             <div className="flex items-center gap-2">
               <input id="rule-update-enabled" name="enabled" type="checkbox" defaultChecked className="h-4 w-4 rounded border-border" />
-              <label htmlFor="rule-update-enabled" className="label mb-0">
-                Enabled
-              </label>
+              <FieldLabel
+                htmlFor="rule-update-enabled"
+                label="Enabled"
+                tooltip="Enable to keep this rule active for alert checks. Example: Checked"
+              />
             </div>
             <div>
-              <label htmlFor="rule-update-parameters" className="label">
-                Parameters JSON
-              </label>
+              <FieldLabel
+                htmlFor="rule-update-parameters"
+                label="Parameters JSON"
+                tooltip='Updated JSON settings. Example: {"maxDrawdownPct":0.15}'
+              />
               <input id="rule-update-parameters" name="parametersJson" defaultValue='{"maxPct":0.10}' className="input" />
             </div>
             <div>

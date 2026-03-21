@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { getJournalEntries, getTheses, JournalEntryView, ThesisView } from "../../lib/api";
-import { CardSection, EmptyState, PageHeader, StatusMessage } from "../components/ui";
+import { CardSection, EmptyState, FieldLabel, PageHeader, StatusMessage } from "../components/ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5014/api";
 
@@ -116,30 +116,38 @@ export default function JournalPage() {
         <CardSection title="Create Thesis">
           <form onSubmit={createThesis} className="grid gap-4">
             <div>
-              <label htmlFor="thesis-title" className="label">
-                Title
-              </label>
+              <FieldLabel
+                htmlFor="thesis-title"
+                label="Title"
+                tooltip="Short thesis headline that is easy to scan later. Example: Reduce concentration in mega-cap tech"
+              />
               <input id="thesis-title" name="title" className="input" required />
             </div>
             <div>
-              <label htmlFor="thesis-body" className="label">
-                Body
-              </label>
+              <FieldLabel
+                htmlFor="thesis-body"
+                label="Body"
+                tooltip="Full thesis rationale and assumptions. Example: Earnings growth slowed while valuation remains elevated..."
+              />
               <textarea id="thesis-body" name="body" className="input min-h-28" required />
             </div>
             <div>
-              <label htmlFor="thesis-status" className="label">
-                Status
-              </label>
+              <FieldLabel
+                htmlFor="thesis-status"
+                label="Status"
+                tooltip="Lifecycle of the thesis. Active means still in force; Retired means no longer active. Example: Active"
+              />
               <select id="thesis-status" name="status" defaultValue="1" className="input">
                 <option value="1">Active</option>
                 <option value="2">Retired</option>
               </select>
             </div>
             <div>
-              <label htmlFor="thesis-instrument-id" className="label">
-                Instrument ID (optional)
-              </label>
+              <FieldLabel
+                htmlFor="thesis-instrument-id"
+                label="Instrument ID (optional)"
+                tooltip="Optional GUID to tie this thesis to one instrument. Example: 3f8f0d76-1b4a-4cde-9a37-0b9e9d2f4c12"
+              />
               <input id="thesis-instrument-id" name="instrumentId" className="input" />
             </div>
             <div>
@@ -153,33 +161,43 @@ export default function JournalPage() {
         <CardSection title="Create Journal Entry">
           <form onSubmit={createJournal} className="grid gap-4">
             <div>
-              <label htmlFor="journal-create-occurred-at" className="label">
-                Occurred At
-              </label>
+              <FieldLabel
+                htmlFor="journal-create-occurred-at"
+                label="Occurred At"
+                tooltip="When this observation or decision happened. Example: 2026-03-21T09:45"
+              />
               <input id="journal-create-occurred-at" name="occurredAt" type="datetime-local" className="input" required />
             </div>
             <div>
-              <label htmlFor="journal-create-title" className="label">
-                Title
-              </label>
+              <FieldLabel
+                htmlFor="journal-create-title"
+                label="Title"
+                tooltip="Short journal heading for quick review. Example: Rebalance after CPI release"
+              />
               <input id="journal-create-title" name="title" className="input" required />
             </div>
             <div>
-              <label htmlFor="journal-create-body" className="label">
-                Body
-              </label>
+              <FieldLabel
+                htmlFor="journal-create-body"
+                label="Body"
+                tooltip="Detailed note describing what happened and why it matters. Example: Added to position after pullback to support..."
+              />
               <textarea id="journal-create-body" name="body" className="input min-h-28" required />
             </div>
             <div>
-              <label htmlFor="journal-create-tags" className="label">
-                Tags
-              </label>
+              <FieldLabel
+                htmlFor="journal-create-tags"
+                label="Tags"
+                tooltip="Optional comma-separated labels for search and grouping. Example: macro,risk,rebalance"
+              />
               <input id="journal-create-tags" name="tags" className="input" />
             </div>
             <div>
-              <label htmlFor="journal-create-thesis" className="label">
-                Linked Thesis
-              </label>
+              <FieldLabel
+                htmlFor="journal-create-thesis"
+                label="Linked Thesis"
+                tooltip="Optional thesis to associate with this journal entry. Example: Reduce concentration in mega-cap tech"
+              />
               <select
                 id="journal-create-thesis"
                 className="input"
@@ -206,9 +224,11 @@ export default function JournalPage() {
       <CardSection title="Update Journal Entry">
         <form onSubmit={updateJournal} className="grid gap-4 md:grid-cols-2">
           <div>
-            <label htmlFor="journal-update-id" className="label">
-              Journal Entry ID
-            </label>
+            <FieldLabel
+              htmlFor="journal-update-id"
+              label="Journal Entry ID"
+              tooltip="GUID of the existing journal entry to update. Example: 21c6dc90-e0fd-4c3f-b6a7-e0af4b4f7a8a"
+            />
             <input
               id="journal-update-id"
               className="input"
@@ -217,27 +237,35 @@ export default function JournalPage() {
             />
           </div>
           <div>
-            <label htmlFor="journal-update-occurred-at" className="label">
-              Occurred At
-            </label>
+            <FieldLabel
+              htmlFor="journal-update-occurred-at"
+              label="Occurred At"
+              tooltip="Updated timestamp for when the event occurred. Example: 2026-03-21T09:45"
+            />
             <input id="journal-update-occurred-at" name="occurredAt" type="datetime-local" className="input" required />
           </div>
           <div>
-            <label htmlFor="journal-update-title" className="label">
-              Title
-            </label>
+            <FieldLabel
+              htmlFor="journal-update-title"
+              label="Title"
+              tooltip="Updated short heading for this entry. Example: Rebalance after CPI release"
+            />
             <input id="journal-update-title" name="title" className="input" required />
           </div>
           <div>
-            <label htmlFor="journal-update-tags" className="label">
-              Tags
-            </label>
+            <FieldLabel
+              htmlFor="journal-update-tags"
+              label="Tags"
+              tooltip="Updated optional comma-separated labels. Example: macro,risk,rebalance"
+            />
             <input id="journal-update-tags" name="tags" className="input" />
           </div>
           <div className="md:col-span-2">
-            <label htmlFor="journal-update-body" className="label">
-              Body
-            </label>
+            <FieldLabel
+              htmlFor="journal-update-body"
+              label="Body"
+              tooltip="Updated full journal note content. Example: Position sizing adjusted to stay within risk limits..."
+            />
             <textarea id="journal-update-body" name="body" className="input min-h-28" required />
           </div>
           <div className="md:col-span-2">

@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { getPriceSnapshots, PriceSnapshotView } from "../../lib/api";
-import { CardSection, EmptyState, PageHeader, StatusMessage } from "../components/ui";
+import { CardSection, EmptyState, FieldLabel, PageHeader, StatusMessage } from "../components/ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5014/api";
 
@@ -56,21 +56,27 @@ export default function PricesPage() {
         <CardSection title="Add / Update Snapshot">
           <form onSubmit={upsertPrice} className="grid gap-4">
             <div>
-              <label htmlFor="snapshot-instrument-id" className="label">
-                Instrument ID
-              </label>
+              <FieldLabel
+                htmlFor="snapshot-instrument-id"
+                label="Instrument ID"
+                tooltip="GUID of the instrument this EOD price belongs to. Example: 3f8f0d76-1b4a-4cde-9a37-0b9e9d2f4c12"
+              />
               <input id="snapshot-instrument-id" name="instrumentId" className="input" required />
             </div>
             <div>
-              <label htmlFor="snapshot-date" className="label">
-                Date
-              </label>
+              <FieldLabel
+                htmlFor="snapshot-date"
+                label="Date"
+                tooltip="Market close date for the snapshot. Example: 2026-03-20"
+              />
               <input id="snapshot-date" name="date" type="date" className="input" required />
             </div>
             <div>
-              <label htmlFor="snapshot-close-price" className="label">
-                Close Price
-              </label>
+              <FieldLabel
+                htmlFor="snapshot-close-price"
+                label="Close Price"
+                tooltip="End-of-day close price in instrument currency. Example: 412.87"
+              />
               <input
                 id="snapshot-close-price"
                 name="closePriceAmount"
@@ -81,9 +87,11 @@ export default function PricesPage() {
               />
             </div>
             <div>
-              <label htmlFor="snapshot-source" className="label">
-                Source
-              </label>
+              <FieldLabel
+                htmlFor="snapshot-source"
+                label="Source"
+                tooltip="Where the close price came from. Choose Manual, Import, or Other. Example: Import"
+              />
               <select id="snapshot-source" name="source" defaultValue="1" className="input">
                 <option value="1">Manual</option>
                 <option value="2">Import</option>
@@ -101,9 +109,11 @@ export default function PricesPage() {
         <CardSection title="List Snapshots">
           <form onSubmit={filterSnapshots} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
             <div>
-              <label htmlFor="filter-instrument-id" className="label">
-                Filter Instrument ID
-              </label>
+              <FieldLabel
+                htmlFor="filter-instrument-id"
+                label="Filter Instrument ID"
+                tooltip="Optional GUID filter to show snapshots for one instrument only. Example: 3f8f0d76-1b4a-4cde-9a37-0b9e9d2f4c12"
+              />
               <input
                 id="filter-instrument-id"
                 className="input"
