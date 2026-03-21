@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { getPriceSnapshots, PriceSnapshotView } from "../../lib/api";
+import { CardSection, EmptyState, PageHeader, StatusMessage } from "../components/ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5014/api";
 
@@ -47,45 +48,110 @@ export default function PricesPage() {
   };
 
   return (
-    <section>
-      <h1>EOD Price Snapshots</h1>
-      <p>{status}</p>
+    <section className="page-stack">
+      <PageHeader title="EOD Price Snapshots" description="Capture daily close data and review source-tracked history." />
+      <StatusMessage message={status} />
 
-      <h2>Add / Update Snapshot</h2>
-      <form onSubmit={upsertPrice}>
-        <label>
-          Instrument ID
-          <input name="instrumentId" required />
-        </label>
-        <label>
-          Date
-          <input name="date" type="date" required />
-        </label>
-        <label>
-          Close Price
-          <input name="closePriceAmount" type="number" step="0.01" required />
-        </label>
-        <label>
-          Source
-          <select name="source" defaultValue="1">
-            <option value="1">Manual</option>
-            <option value="2">Import</option>
-            <option value="3">Other</option>
-          </select>
-        </label>
-        <button type="submit">Save Snapshot</button>
-      </form>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <CardSection title="Add / Update Snapshot">
+          <form onSubmit={upsertPrice} className="grid gap-4">
+            <div>
+              <label htmlFor="snapshot-instrument-id" className="label">
+                Instrument ID
+              </label>
+              <input id="snapshot-instrument-id" name="instrumentId" className="input" required />
+            </div>
+            <div>
+              <label htmlFor="snapshot-date" className="label">
+                Date
+              </label>
+              <input id="snapshot-date" name="date" type="date" className="input" required />
+            </div>
+            <div>
+              <label htmlFor="snapshot-close-price" className="label">
+                Close Price
+              </label>
+              <input
+                id="snapshot-close-price"
+                name="closePriceAmount"
+                type="number"
+                step="0.01"
+                className="input"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="snapshot-source" className="label">
+                Source
+              </label>
+              <select id="snapshot-source" name="source" defaultValue="1" className="input">
+                <option value="1">Manual</option>
+                <option value="2">Import</option>
+                <option value="3">Other</option>
+              </select>
+            </div>
+            <div>
+              <button type="submit" className="btn-primary">
+                Save Snapshot
+              </button>
+            </div>
+          </form>
+        </CardSection>
 
-      <h2>List Snapshots</h2>
-      <form onSubmit={filterSnapshots}>
-        <label>
-          Filter Instrument ID
-          <input value={instrumentId} onChange={(e) => setInstrumentId(e.target.value)} />
-        </label>
-        <button type="submit">Apply Filter</button>
-      </form>
+        <CardSection title="List Snapshots">
+          <form onSubmit={filterSnapshots} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+            <div>
+              <label htmlFor="filter-instrument-id" className="label">
+                Filter Instrument ID
+              </label>
+              <input
+                id="filter-instrument-id"
+                className="input"
+                value={instrumentId}
+                onChange={(e) => setInstrumentId(e.target.value)}
+              />
+            </div>
+            <div>
+              <button type="submit" className="btn-secondary">
+                Apply Filter
+              </button>
+            </div>
+          </form>
+        </CardSection>
+      </div>
 
-      {snapshots.length === 0 ? <p>No snapshots found.</p> : <pre>{JSON.stringify(snapshots, null, 2)}</pre>}
+      <CardSection title="Snapshot Results">
+        {snapshots.length === 0 ? (
+          <EmptyState message="No snapshots found." />
+        ) : (
+          <div className="table-wrap">
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th scope="col">Snapshot ID</th>
+                  <th scope="col">Instrument ID</th>
+                  <th scope="col">Date</th>
+                  <th scope="col" className="text-right">
+                    Close Price
+                  </th>
+                  <th scope="col">Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {snapshots.map((snapshot) => (
+                  <tr key={typeof snapshot.id === "string" ? snapshot.id : snapshot.id.value}>
+                    <td>{typeof snapshot.id === "string" ? snapshot.id : snapshot.id.value}</td>
+                    <td>{typeof snapshot.instrumentId === "string" ? snapshot.instrumentId : snapshot.instrumentId.value}</td>
+                    <td>{snapshot.date}</td>
+                    <td className="text-right">{snapshot.closePriceAmount.toFixed(2)}</td>
+                    <td>{snapshot.source}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardSection>
     </section>
   );
 }

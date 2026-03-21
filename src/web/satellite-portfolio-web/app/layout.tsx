@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { SiteNav } from "./components/site-nav";
+import "./globals.css";
 
 export const metadata = {
   title: "Satellite Portfolio",
@@ -8,18 +10,24 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: "Arial, sans-serif", backgroundColor: "#0f172a", color: "#e2e8f0" }}>
-        <header style={{ padding: "1rem 1.5rem", borderBottom: "1px solid #1e293b" }}>
-          <nav style={{ display: "flex", gap: "1rem" }}>
-            <a href="/" style={{ color: "#93c5fd" }}>Overview</a>
-            <a href="/holdings" style={{ color: "#93c5fd" }}>Holdings</a>
-            <a href="/trades" style={{ color: "#93c5fd" }}>Trades</a>
-            <a href="/prices" style={{ color: "#93c5fd" }}>Prices</a>
-            <a href="/journal" style={{ color: "#93c5fd" }}>Journal</a>
-            <a href="/rules" style={{ color: "#93c5fd" }}>Rules</a>
-          </nav>
+      <body className="min-h-screen">
+        <header className="border-b border-border bg-surface">
+          <div className="app-shell py-4">
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="text-lg font-semibold text-text">Satellite Portfolio</p>
+                <p className="muted">Portfolio tracker MVP</p>
+              </div>
+              <SiteNav />
+            </div>
+          </div>
         </header>
-        <main style={{ padding: "1.5rem" }}>{children}</main>
+        <main className="app-shell">{children}</main>
+        <footer className="border-t border-border bg-surface">
+          <div className="app-shell py-4">
+            <p className="muted">Decision-support only. No broker execution or auto-trading.</p>
+          </div>
+        </footer>
       </body>
     </html>
   );

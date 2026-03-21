@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { AlertEventView, getCurrentAlerts, getRules, RuleView } from "../../lib/api";
+import { CardSection, EmptyState, PageHeader, StatusMessage } from "../components/ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5014/api";
 
@@ -16,6 +17,8 @@ export default function RulesPage() {
     setRules(rulesData);
     setAlerts(alertsData);
   };
+
+  const getId = (value: { value: string } | string): string => (typeof value === "string" ? value : value.value);
 
   useEffect(() => {
     refresh().catch(() => setStatus("Failed to load rules/alerts."));
@@ -69,61 +72,146 @@ export default function RulesPage() {
   };
 
   return (
-    <section>
-      <h1>Rules & Alerts</h1>
-      <p>{status}</p>
+    <section className="page-stack">
+      <PageHeader title="Rules & Alerts" description="Configure portfolio limits and monitor active alert events." />
+      <StatusMessage message={status} />
 
-      <h2>Create Rule</h2>
-      <form onSubmit={createRule}>
-        <label>
-          Type
-          <select name="type" defaultValue="1">
-            <option value="1">MaxPositionSize</option>
-            <option value="2">MaxSectorConcentration</option>
-            <option value="3">MaxDrawdown</option>
-          </select>
-        </label>
-        <label>
-          Enabled
-          <input name="enabled" type="checkbox" defaultChecked />
-        </label>
-        <label>
-          Parameters JSON
-          <input name="parametersJson" defaultValue='{"maxPct":0.10}' />
-        </label>
-        <button type="submit">Create Rule</button>
-      </form>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <CardSection title="Create Rule">
+          <form onSubmit={createRule} className="grid gap-4">
+            <div>
+              <label htmlFor="rule-create-type" className="label">
+                Type
+              </label>
+              <select id="rule-create-type" name="type" defaultValue="1" className="input">
+                <option value="1">MaxPositionSize</option>
+                <option value="2">MaxSectorConcentration</option>
+                <option value="3">MaxDrawdown</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <input id="rule-create-enabled" name="enabled" type="checkbox" defaultChecked className="h-4 w-4 rounded border-border" />
+              <label htmlFor="rule-create-enabled" className="label mb-0">
+                Enabled
+              </label>
+            </div>
+            <div>
+              <label htmlFor="rule-create-parameters" className="label">
+                Parameters JSON
+              </label>
+              <input id="rule-create-parameters" name="parametersJson" defaultValue='{"maxPct":0.10}' className="input" />
+            </div>
+            <div>
+              <button type="submit" className="btn-primary">
+                Create Rule
+              </button>
+            </div>
+          </form>
+        </CardSection>
 
-      <h2>Update Rule</h2>
-      <form onSubmit={updateRule}>
-        <label>
-          Rule ID
-          <input value={selectedRuleId} onChange={(e) => setSelectedRuleId(e.target.value)} />
-        </label>
-        <label>
-          Type
-          <select name="type" defaultValue="1">
-            <option value="1">MaxPositionSize</option>
-            <option value="2">MaxSectorConcentration</option>
-            <option value="3">MaxDrawdown</option>
-          </select>
-        </label>
-        <label>
-          Enabled
-          <input name="enabled" type="checkbox" defaultChecked />
-        </label>
-        <label>
-          Parameters JSON
-          <input name="parametersJson" defaultValue='{"maxPct":0.10}' />
-        </label>
-        <button type="submit">Update Rule</button>
-      </form>
+        <CardSection title="Update Rule">
+          <form onSubmit={updateRule} className="grid gap-4">
+            <div>
+              <label htmlFor="rule-update-id" className="label">
+                Rule ID
+              </label>
+              <input
+                id="rule-update-id"
+                className="input"
+                value={selectedRuleId}
+                onChange={(e) => setSelectedRuleId(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="rule-update-type" className="label">
+                Type
+              </label>
+              <select id="rule-update-type" name="type" defaultValue="1" className="input">
+                <option value="1">MaxPositionSize</option>
+                <option value="2">MaxSectorConcentration</option>
+                <option value="3">MaxDrawdown</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <input id="rule-update-enabled" name="enabled" type="checkbox" defaultChecked className="h-4 w-4 rounded border-border" />
+              <label htmlFor="rule-update-enabled" className="label mb-0">
+                Enabled
+              </label>
+            </div>
+            <div>
+              <label htmlFor="rule-update-parameters" className="label">
+                Parameters JSON
+              </label>
+              <input id="rule-update-parameters" name="parametersJson" defaultValue='{"maxPct":0.10}' className="input" />
+            </div>
+            <div>
+              <button type="submit" className="btn-primary">
+                Update Rule
+              </button>
+            </div>
+          </form>
+        </CardSection>
+      </div>
 
-      <h2>Current Rules</h2>
-      {rules.length === 0 ? <p>No rules configured.</p> : <pre>{JSON.stringify(rules, null, 2)}</pre>}
+      <CardSection title="Current Rules">
+        {rules.length === 0 ? (
+          <EmptyState message="No rules configured." />
+        ) : (
+          <div className="table-wrap">
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th scope="col">Rule ID</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Enabled</th>
+                  <th scope="col">Parameters JSON</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rules.map((rule) => (
+                  <tr key={getId(rule.id)}>
+                    <td>{getId(rule.id)}</td>
+                    <td>{rule.type}</td>
+                    <td>{rule.enabled ? "Yes" : "No"}</td>
+                    <td className="font-mono text-xs">{rule.parametersJson}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardSection>
 
-      <h2>Current Alerts</h2>
-      {alerts.length === 0 ? <p>No active alerts.</p> : <pre>{JSON.stringify(alerts, null, 2)}</pre>}
+      <CardSection title="Current Alerts">
+        {alerts.length === 0 ? (
+          <EmptyState message="No active alerts." />
+        ) : (
+          <div className="table-wrap">
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th scope="col">Alert ID</th>
+                  <th scope="col">Rule ID</th>
+                  <th scope="col">Severity</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Triggered At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {alerts.map((alert) => (
+                  <tr key={getId(alert.id)}>
+                    <td>{getId(alert.id)}</td>
+                    <td>{getId(alert.ruleId)}</td>
+                    <td>{alert.severity}</td>
+                    <td>{alert.title}</td>
+                    <td>{new Date(alert.triggeredAt).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardSection>
     </section>
   );
 }

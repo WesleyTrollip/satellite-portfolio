@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { getJournalEntries, getTheses, JournalEntryView, ThesisView } from "../../lib/api";
+import { CardSection, EmptyState, PageHeader, StatusMessage } from "../components/ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5014/api";
 
@@ -107,93 +108,179 @@ export default function JournalPage() {
   };
 
   return (
-    <section>
-      <h1>Journal & Theses</h1>
-      <p>{status}</p>
+    <section className="page-stack">
+      <PageHeader title="Journal & Theses" description="Capture thesis context and timestamped research decisions." />
+      <StatusMessage message={status} />
 
-      <h2>Create Thesis</h2>
-      <form onSubmit={createThesis}>
-        <label>
-          Title
-          <input name="title" required />
-        </label>
-        <label>
-          Body
-          <textarea name="body" required />
-        </label>
-        <label>
-          Status
-          <select name="status" defaultValue="1">
-            <option value="1">Active</option>
-            <option value="2">Retired</option>
-          </select>
-        </label>
-        <label>
-          Instrument ID (optional)
-          <input name="instrumentId" />
-        </label>
-        <button type="submit">Create Thesis</button>
-      </form>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <CardSection title="Create Thesis">
+          <form onSubmit={createThesis} className="grid gap-4">
+            <div>
+              <label htmlFor="thesis-title" className="label">
+                Title
+              </label>
+              <input id="thesis-title" name="title" className="input" required />
+            </div>
+            <div>
+              <label htmlFor="thesis-body" className="label">
+                Body
+              </label>
+              <textarea id="thesis-body" name="body" className="input min-h-28" required />
+            </div>
+            <div>
+              <label htmlFor="thesis-status" className="label">
+                Status
+              </label>
+              <select id="thesis-status" name="status" defaultValue="1" className="input">
+                <option value="1">Active</option>
+                <option value="2">Retired</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="thesis-instrument-id" className="label">
+                Instrument ID (optional)
+              </label>
+              <input id="thesis-instrument-id" name="instrumentId" className="input" />
+            </div>
+            <div>
+              <button type="submit" className="btn-primary">
+                Create Thesis
+              </button>
+            </div>
+          </form>
+        </CardSection>
 
-      <h2>Create Journal Entry</h2>
-      <form onSubmit={createJournal}>
-        <label>
-          Occurred At
-          <input name="occurredAt" type="datetime-local" required />
-        </label>
-        <label>
-          Title
-          <input name="title" required />
-        </label>
-        <label>
-          Body
-          <textarea name="body" required />
-        </label>
-        <label>
-          Tags
-          <input name="tags" />
-        </label>
-        <label>
-          Linked Thesis
-          <select value={selectedThesisId} onChange={(e) => setSelectedThesisId(e.target.value)}>
-            <option value="">None</option>
-            {thesisOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="submit">Create Journal Entry</button>
-      </form>
+        <CardSection title="Create Journal Entry">
+          <form onSubmit={createJournal} className="grid gap-4">
+            <div>
+              <label htmlFor="journal-create-occurred-at" className="label">
+                Occurred At
+              </label>
+              <input id="journal-create-occurred-at" name="occurredAt" type="datetime-local" className="input" required />
+            </div>
+            <div>
+              <label htmlFor="journal-create-title" className="label">
+                Title
+              </label>
+              <input id="journal-create-title" name="title" className="input" required />
+            </div>
+            <div>
+              <label htmlFor="journal-create-body" className="label">
+                Body
+              </label>
+              <textarea id="journal-create-body" name="body" className="input min-h-28" required />
+            </div>
+            <div>
+              <label htmlFor="journal-create-tags" className="label">
+                Tags
+              </label>
+              <input id="journal-create-tags" name="tags" className="input" />
+            </div>
+            <div>
+              <label htmlFor="journal-create-thesis" className="label">
+                Linked Thesis
+              </label>
+              <select
+                id="journal-create-thesis"
+                className="input"
+                value={selectedThesisId}
+                onChange={(e) => setSelectedThesisId(e.target.value)}
+              >
+                <option value="">None</option>
+                {thesisOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <button type="submit" className="btn-primary">
+                Create Journal Entry
+              </button>
+            </div>
+          </form>
+        </CardSection>
+      </div>
 
-      <h2>Update Journal Entry</h2>
-      <form onSubmit={updateJournal}>
-        <label>
-          Journal Entry ID
-          <input value={selectedJournalId} onChange={(e) => setSelectedJournalId(e.target.value)} />
-        </label>
-        <label>
-          Occurred At
-          <input name="occurredAt" type="datetime-local" required />
-        </label>
-        <label>
-          Title
-          <input name="title" required />
-        </label>
-        <label>
-          Body
-          <textarea name="body" required />
-        </label>
-        <label>
-          Tags
-          <input name="tags" />
-        </label>
-        <button type="submit">Update Journal Entry</button>
-      </form>
+      <CardSection title="Update Journal Entry">
+        <form onSubmit={updateJournal} className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label htmlFor="journal-update-id" className="label">
+              Journal Entry ID
+            </label>
+            <input
+              id="journal-update-id"
+              className="input"
+              value={selectedJournalId}
+              onChange={(e) => setSelectedJournalId(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="journal-update-occurred-at" className="label">
+              Occurred At
+            </label>
+            <input id="journal-update-occurred-at" name="occurredAt" type="datetime-local" className="input" required />
+          </div>
+          <div>
+            <label htmlFor="journal-update-title" className="label">
+              Title
+            </label>
+            <input id="journal-update-title" name="title" className="input" required />
+          </div>
+          <div>
+            <label htmlFor="journal-update-tags" className="label">
+              Tags
+            </label>
+            <input id="journal-update-tags" name="tags" className="input" />
+          </div>
+          <div className="md:col-span-2">
+            <label htmlFor="journal-update-body" className="label">
+              Body
+            </label>
+            <textarea id="journal-update-body" name="body" className="input min-h-28" required />
+          </div>
+          <div className="md:col-span-2">
+            <button type="submit" className="btn-primary">
+              Update Journal Entry
+            </button>
+          </div>
+        </form>
+      </CardSection>
 
-      <h2>Journal Entries</h2>
-      {entries.length === 0 ? <p>No entries found.</p> : <pre>{JSON.stringify(entries, null, 2)}</pre>}
+      <CardSection title="Journal Entries">
+        {entries.length === 0 ? (
+          <EmptyState message="No entries found." />
+        ) : (
+          <div className="table-wrap">
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th scope="col">Entry ID</th>
+                  <th scope="col">Occurred At</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Tags</th>
+                  <th scope="col">Linked Theses</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((entry) => {
+                  const entryId = typeof entry.entry.id === "string" ? entry.entry.id : entry.entry.id.value;
+                  return (
+                    <tr key={entryId}>
+                      <td>{entryId}</td>
+                      <td>{new Date(entry.entry.occurredAt).toLocaleString()}</td>
+                      <td>{entry.entry.title}</td>
+                      <td>{entry.entry.tags || "-"}</td>
+                      <td>{entry.thesisIds.join(", ") || "-"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardSection>
     </section>
   );
 }

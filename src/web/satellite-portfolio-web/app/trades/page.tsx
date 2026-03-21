@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { CardSection, EmptyState, PageHeader, StatusMessage } from "../components/ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5014/api";
 
@@ -138,139 +139,208 @@ export default function TradesPage() {
     }
   };
 
+  const correctionChains = buildCorrectionChains(trades);
+
   return (
-    <section>
-      <h1>Trades</h1>
-      <p>Manual trade entry and auditable correction workflow.</p>
-      <p>{status}</p>
+    <section className="page-stack">
+      <PageHeader title="Trades" description="Manual trade entry and auditable correction workflow." />
+      <StatusMessage message={status} />
 
-      <h2>Create Trade</h2>
-      <form onSubmit={submitTrade}>
-        <label>
-          Instrument ID
-          <input value={instrumentId} onChange={(e) => setInstrumentId(e.target.value)} required />
-        </label>
-        <label>
-          Side
-          <select name="side" defaultValue="1">
-            <option value="1">Buy</option>
-            <option value="2">Sell</option>
-          </select>
-        </label>
-        <label>
-          Quantity
-          <input name="quantity" type="number" step="0.0001" required />
-        </label>
-        <label>
-          Price
-          <input name="priceAmount" type="number" step="0.01" required />
-        </label>
-        <label>
-          Fees
-          <input name="feesAmount" type="number" step="0.01" defaultValue="0" />
-        </label>
-        <label>
-          Executed At (UTC)
-          <input name="executedAt" type="datetime-local" required />
-        </label>
-        <label>
-          Notes
-          <input name="notes" />
-        </label>
-        <button type="submit">Create</button>
-      </form>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <CardSection title="Create Trade">
+          <form onSubmit={submitTrade} className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="trade-instrument-id" className="label">
+                Instrument ID
+              </label>
+              <input
+                id="trade-instrument-id"
+                className="input"
+                value={instrumentId}
+                onChange={(e) => setInstrumentId(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="trade-side" className="label">
+                Side
+              </label>
+              <select id="trade-side" name="side" defaultValue="1" className="input">
+                <option value="1">Buy</option>
+                <option value="2">Sell</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="trade-quantity" className="label">
+                Quantity
+              </label>
+              <input id="trade-quantity" name="quantity" type="number" step="0.0001" className="input" required />
+            </div>
+            <div>
+              <label htmlFor="trade-price" className="label">
+                Price
+              </label>
+              <input id="trade-price" name="priceAmount" type="number" step="0.01" className="input" required />
+            </div>
+            <div>
+              <label htmlFor="trade-fees" className="label">
+                Fees
+              </label>
+              <input id="trade-fees" name="feesAmount" type="number" step="0.01" defaultValue="0" className="input" />
+            </div>
+            <div>
+              <label htmlFor="trade-executed-at" className="label">
+                Executed At (UTC)
+              </label>
+              <input id="trade-executed-at" name="executedAt" type="datetime-local" className="input" required />
+            </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="trade-notes" className="label">
+                Notes
+              </label>
+              <input id="trade-notes" name="notes" className="input" />
+            </div>
+            <div className="sm:col-span-2">
+              <button type="submit" className="btn-primary">
+                Create
+              </button>
+            </div>
+          </form>
+        </CardSection>
 
-      <h2>Correct Trade</h2>
-      <form onSubmit={submitCorrection}>
-        <label>
-          Trade ID
-          <input value={tradeIdToCorrect} onChange={(e) => setTradeIdToCorrect(e.target.value)} required />
-        </label>
-        <label>
-          Quantity
-          <input name="quantity" type="number" step="0.0001" required />
-        </label>
-        <label>
-          Price
-          <input name="priceAmount" type="number" step="0.01" required />
-        </label>
-        <label>
-          Fees
-          <input name="feesAmount" type="number" step="0.01" defaultValue="0" />
-        </label>
-        <label>
-          Executed At (UTC)
-          <input name="executedAt" type="datetime-local" required />
-        </label>
-        <label>
-          Notes
-          <input name="notes" />
-        </label>
-        <label>
-          Reason
-          <input name="reason" required />
-        </label>
-        <button type="submit">Correct</button>
-      </form>
+        <CardSection title="Correct Trade">
+          <form onSubmit={submitCorrection} className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="correction-trade-id" className="label">
+                Trade ID
+              </label>
+              <input
+                id="correction-trade-id"
+                className="input"
+                value={tradeIdToCorrect}
+                onChange={(e) => setTradeIdToCorrect(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="correction-quantity" className="label">
+                Quantity
+              </label>
+              <input id="correction-quantity" name="quantity" type="number" step="0.0001" className="input" required />
+            </div>
+            <div>
+              <label htmlFor="correction-price" className="label">
+                Price
+              </label>
+              <input id="correction-price" name="priceAmount" type="number" step="0.01" className="input" required />
+            </div>
+            <div>
+              <label htmlFor="correction-fees" className="label">
+                Fees
+              </label>
+              <input id="correction-fees" name="feesAmount" type="number" step="0.01" defaultValue="0" className="input" />
+            </div>
+            <div>
+              <label htmlFor="correction-executed-at" className="label">
+                Executed At (UTC)
+              </label>
+              <input
+                id="correction-executed-at"
+                name="executedAt"
+                type="datetime-local"
+                className="input"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="correction-reason" className="label">
+                Reason
+              </label>
+              <input id="correction-reason" name="reason" className="input" required />
+            </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="correction-notes" className="label">
+                Notes
+              </label>
+              <input id="correction-notes" name="notes" className="input" />
+            </div>
+            <div className="sm:col-span-2">
+              <button type="submit" className="btn-primary">
+                Correct
+              </button>
+            </div>
+          </form>
+        </CardSection>
+      </div>
 
-      <h2>Trade History</h2>
-      {trades.length === 0 ? (
-        <p>No trades found.</p>
-      ) : (
-        <table style={{ borderCollapse: "collapse", width: "100%" }}>
-          <thead>
-            <tr>
-              <th align="left">Trade ID</th>
-              <th align="left">Instrument ID</th>
-              <th align="left">Side</th>
-              <th align="right">Quantity</th>
-              <th align="right">Price</th>
-              <th align="right">Fees</th>
-              <th align="left">Executed At</th>
-              <th align="left">Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trades.map((trade) => (
-              <tr key={getId(trade.id)}>
-                <td>{getId(trade.id)}</td>
-                <td>{getId(trade.instrumentId)}</td>
-                <td>{getSideLabel(trade.side)}</td>
-                <td align="right">{trade.quantity}</td>
-                <td align="right">{trade.priceAmount}</td>
-                <td align="right">{trade.feesAmount}</td>
-                <td>{new Date(trade.executedAt).toLocaleString()}</td>
-                <td>{trade.notes ?? "-"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <h2>Correction Audit Chains</h2>
-      {buildCorrectionChains(trades).length === 0 ? (
-        <p>No correction chains found.</p>
-      ) : (
-        <div>
-          {buildCorrectionChains(trades).map((chain) => (
-            <article key={chain.correctionGroupId} style={{ border: "1px solid #334155", padding: "0.75rem", marginBottom: "0.75rem" }}>
-              <h3>Correction Group: {chain.correctionGroupId}</h3>
-              <ol>
-                {chain.items.map((item) => (
-                  <li key={getId(item.id)}>
-                    <strong>{item.isCorrectionReversal ? "Reversal" : "Replacement"}</strong>
-                    {" - "}
-                    {getSideLabel(item.side)} {item.quantity} @ {item.priceAmount}
-                    {" | "}
-                    {new Date(item.executedAt).toLocaleString()}
-                    {getCorrectionReason(item.notes) ? ` | Reason: ${getCorrectionReason(item.notes)}` : ""}
-                  </li>
+      <CardSection title="Trade History">
+        {trades.length === 0 ? (
+          <EmptyState message="No trades found." />
+        ) : (
+          <div className="table-wrap">
+            <table className="table-base">
+              <thead>
+                <tr>
+                  <th scope="col">Trade ID</th>
+                  <th scope="col">Instrument ID</th>
+                  <th scope="col">Side</th>
+                  <th scope="col" className="text-right">
+                    Quantity
+                  </th>
+                  <th scope="col" className="text-right">
+                    Price
+                  </th>
+                  <th scope="col" className="text-right">
+                    Fees
+                  </th>
+                  <th scope="col">Executed At</th>
+                  <th scope="col">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trades.map((trade) => (
+                  <tr key={getId(trade.id)}>
+                    <td>{getId(trade.id)}</td>
+                    <td>{getId(trade.instrumentId)}</td>
+                    <td>{getSideLabel(trade.side)}</td>
+                    <td className="text-right">{trade.quantity}</td>
+                    <td className="text-right">{trade.priceAmount}</td>
+                    <td className="text-right">{trade.feesAmount}</td>
+                    <td>{new Date(trade.executedAt).toLocaleString()}</td>
+                    <td>{trade.notes ?? "-"}</td>
+                  </tr>
                 ))}
-              </ol>
-            </article>
-          ))}
-        </div>
-      )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardSection>
+
+      <CardSection title="Correction Audit Chains">
+        {correctionChains.length === 0 ? (
+          <EmptyState message="No correction chains found." />
+        ) : (
+          <div className="space-y-3">
+            {correctionChains.map((chain) => (
+              <article key={chain.correctionGroupId} className="rounded-md border border-border bg-surface-muted p-4">
+                <h3 className="mb-2">Correction Group: {chain.correctionGroupId}</h3>
+                <ol className="list-inside list-decimal space-y-1 text-sm">
+                  {chain.items.map((item) => (
+                    <li key={getId(item.id)}>
+                      <span className="font-semibold">{item.isCorrectionReversal ? "Reversal" : "Replacement"}</span>
+                      {" - "}
+                      {getSideLabel(item.side)} {item.quantity} @ {item.priceAmount}
+                      {" | "}
+                      {new Date(item.executedAt).toLocaleString()}
+                      {getCorrectionReason(item.notes) ? ` | Reason: ${getCorrectionReason(item.notes)}` : ""}
+                    </li>
+                  ))}
+                </ol>
+              </article>
+            ))}
+          </div>
+        )}
+      </CardSection>
     </section>
   );
 }

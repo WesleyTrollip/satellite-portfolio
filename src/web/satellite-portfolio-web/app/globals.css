@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #020617;
+  --surface: #0b1220;
+  --surface-muted: #131c2e;
+  --border: #23314d;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --primary: #60a5fa;
+  --primary-strong: #3b82f6;
+  --success: #34d399;
+  --warning: #f59e0b;
+  --danger: #f87171;
+  --ring: #93c5fd;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-ring: var(--ring);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-bg text-text antialiased;
+  }
+
+  h1 {
+    @apply text-2xl font-semibold tracking-tight sm:text-3xl;
+  }
+
+  h2 {
+    @apply text-xl font-semibold tracking-tight;
+  }
+
+  h3 {
+    @apply text-lg font-semibold tracking-tight;
+  }
+
+  a {
+    @apply text-primary underline-offset-2 hover:text-primary-strong hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg;
+  }
+}
+
+@layer components {
+  .app-shell {
+    @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8;
+  }
+
+  .page-stack {
+    @apply space-y-6;
+  }
+
+  .card {
+    @apply rounded-lg border border-border bg-surface p-4 shadow-sm sm:p-5;
+  }
+
+  .muted {
+    @apply text-sm text-text-muted;
+  }
+
+  .status {
+    @apply rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-text;
+  }
+
+  .table-wrap {
+    @apply overflow-x-auto rounded-lg border border-border bg-surface;
+  }
+
+  .table-base {
+    @apply min-w-full border-collapse text-sm;
+  }
+
+  .table-base th {
+    @apply whitespace-nowrap border-b border-border bg-surface-muted px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-text-muted;
+  }
+
+  .table-base td {
+    @apply border-t border-border px-3 py-2 align-top;
+  }
+
+  .label {
+    @apply mb-1 block text-sm font-medium text-text;
+  }
+
+  .input {
+    @apply w-full rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-text placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-primary-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-md border border-border bg-surface-muted px-4 py-2 text-sm font-semibold text-text transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+}
