@@ -10,6 +10,9 @@ export default function RulesPage() {
   const [rules, setRules] = useState<RuleView[]>([]);
   const [alerts, setAlerts] = useState<AlertEventView[]>([]);
   const [selectedRuleId, setSelectedRuleId] = useState("");
+  const [updateType, setUpdateType] = useState("1");
+  const [updateEnabled, setUpdateEnabled] = useState(true);
+  const [updateParametersJson, setUpdateParametersJson] = useState('{"maxPct":0.10}');
   const [status, setStatus] = useState("");
 
   const refresh = async () => {
@@ -52,11 +55,10 @@ export default function RulesPage() {
       return;
     }
 
-    const form = new FormData(event.currentTarget);
     const payload = {
-      type: form.get("type"),
-      enabled: form.get("enabled") === "on",
-      parametersJson: form.get("parametersJson")
+      type: updateType,
+      enabled: updateEnabled,
+      parametersJson: updateParametersJson
     };
 
     const response = await fetch(`${API_BASE_URL}/rules/${selectedRuleId}`, {
@@ -69,6 +71,27 @@ export default function RulesPage() {
     if (response.ok) {
       await refresh();
     }
+  };
+
+  const startEdit = (rule: RuleView) => {
+    const id = getId(rule.id);
+    setSelectedRuleId(id);
+    const normalizedType =
+      rule.type === "1" || rule.type === "MaxPositionSize"
+        ? "1"
+        : rule.type === "2" || rule.type === "MaxSectorConcentration"
+          ? "2"
+          : "3";
+    setUpdateType(normalizedType);
+    setUpdateEnabled(rule.enabled);
+    setUpdateParametersJson(rule.parametersJson);
+  };
+
+  const cancelEdit = () => {
+    setSelectedRuleId("");
+    setUpdateType("1");
+    setUpdateEnabled(true);
+    setUpdateParametersJson('{"maxPct":0.10}');
   };
 
   return (
@@ -120,14 +143,14 @@ export default function RulesPage() {
             <div>
               <FieldLabel
                 htmlFor="rule-update-id"
-                label="Rule ID"
-                tooltip="GUID of an existing rule to update. Example: 9d8fd5ef-157c-44d4-88ac-4381e5d02fa4"
+                label="Selected Rule"
+                tooltip="Use Edit in the current rules table to preload this form."
               />
               <input
                 id="rule-update-id"
                 className="input"
                 value={selectedRuleId}
-                onChange={(e) => setSelectedRuleId(e.target.value)}
+                readOnly
               />
             </div>
             <div>
@@ -136,14 +159,27 @@ export default function RulesPage() {
                 label="Type"
                 tooltip="Rule category for the updated rule definition. Example: MaxDrawdown"
               />
-              <select id="rule-update-type" name="type" defaultValue="1" className="input">
+              <select
+                id="rule-update-type"
+                name="type"
+                value={updateType}
+                onChange={(e) => setUpdateType(e.target.value)}
+                className="input"
+              >
                 <option value="1">MaxPositionSize</option>
                 <option value="2">MaxSectorConcentration</option>
                 <option value="3">MaxDrawdown</option>
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <input id="rule-update-enabled" name="enabled" type="checkbox" defaultChecked className="h-4 w-4 rounded border-border" />
+              <input
+                id="rule-update-enabled"
+                name="enabled"
+                type="checkbox"
+                checked={updateEnabled}
+                onChange={(e) => setUpdateEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
               <FieldLabel
                 htmlFor="rule-update-enabled"
                 label="Enabled"
@@ -156,11 +192,20 @@ export default function RulesPage() {
                 label="Parameters JSON"
                 tooltip='Updated JSON settings. Example: {"maxDrawdownPct":0.15}'
               />
-              <input id="rule-update-parameters" name="parametersJson" defaultValue='{"maxPct":0.10}' className="input" />
+              <input
+                id="rule-update-parameters"
+                name="parametersJson"
+                value={updateParametersJson}
+                onChange={(e) => setUpdateParametersJson(e.target.value)}
+                className="input"
+              />
             </div>
             <div>
               <button type="submit" className="btn-primary">
                 Update Rule
+              </button>
+              <button type="button" className="btn-secondary ml-2" onClick={cancelEdit}>
+                Cancel
               </button>
             </div>
           </form>
@@ -179,6 +224,7 @@ export default function RulesPage() {
                   <th scope="col">Type</th>
                   <th scope="col">Enabled</th>
                   <th scope="col">Parameters JSON</th>
+                  <th scope="col">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -188,6 +234,11 @@ export default function RulesPage() {
                     <td>{rule.type}</td>
                     <td>{rule.enabled ? "Yes" : "No"}</td>
                     <td className="font-mono text-xs">{rule.parametersJson}</td>
+                    <td>
+                      <button type="button" className="btn-secondary" onClick={() => startEdit(rule)}>
+                        Edit
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -9,9 +9,12 @@ public class SatellitePortfolioDbContext(DbContextOptions<SatellitePortfolioDbCo
 {
     public DbSet<Portfolio> Portfolios => Set<Portfolio>();
     public DbSet<Instrument> Instruments => Set<Instrument>();
+    public DbSet<SectorLookup> SectorLookups => Set<SectorLookup>();
     public DbSet<Trade> Trades => Set<Trade>();
     public DbSet<CashLedgerEntry> CashLedgerEntries => Set<CashLedgerEntry>();
     public DbSet<PriceSnapshot> PriceSnapshots => Set<PriceSnapshot>();
+    public DbSet<PriceSourceLookup> PriceSourceLookups => Set<PriceSourceLookup>();
+    public DbSet<CorrectionReasonLookup> CorrectionReasonLookups => Set<CorrectionReasonLookup>();
     public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
     public DbSet<InvestmentThesis> InvestmentTheses => Set<InvestmentThesis>();
     public DbSet<JournalEntryThesisLink> JournalEntryThesisLinks => Set<JournalEntryThesisLink>();
@@ -25,6 +28,7 @@ public class SatellitePortfolioDbContext(DbContextOptions<SatellitePortfolioDbCo
 
         ConfigurePortfolio(modelBuilder);
         ConfigureInstrument(modelBuilder);
+        ConfigureLookupTables(modelBuilder);
         ConfigureTrade(modelBuilder);
         ConfigureCashLedgerEntry(modelBuilder);
         ConfigurePriceSnapshot(modelBuilder);
@@ -57,10 +61,60 @@ public class SatellitePortfolioDbContext(DbContextOptions<SatellitePortfolioDbCo
             entity.Property(x => x.Symbol).HasMaxLength(30).IsRequired();
             entity.Property(x => x.Name).HasMaxLength(200);
             entity.Property(x => x.Sector).HasMaxLength(120);
+            entity.Property(x => x.SectorLookupId).HasConversion(IdConverters.NullableSectorLookupIdConverter);
             entity.Property(x => x.Currency).HasMaxLength(3).IsRequired();
             entity.Property(x => x.CreatedAt).IsRequired();
 
             entity.HasIndex(x => x.Symbol).IsUnique();
+            entity.HasOne<SectorLookup>()
+                .WithMany()
+                .HasForeignKey(x => x.SectorLookupId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+    }
+
+    private static void ConfigureLookupTables(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SectorLookup>(entity =>
+        {
+            entity.ToTable("sector_lookups");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasConversion(IdConverters.SectorLookupIdConverter);
+            entity.Property(x => x.Code).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.IsActive).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<PriceSourceLookup>(entity =>
+        {
+            entity.ToTable("price_source_lookups");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasConversion(IdConverters.PriceSourceLookupIdConverter);
+            entity.Property(x => x.Code).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.IsActive).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<CorrectionReasonLookup>(entity =>
+        {
+            entity.ToTable("correction_reason_lookups");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasConversion(IdConverters.CorrectionReasonLookupIdConverter);
+            entity.Property(x => x.Code).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Name).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.IsActive).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
+            entity.Property(x => x.UpdatedAt).IsRequired();
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => x.Name).IsUnique();
         });
     }
 
@@ -77,12 +131,20 @@ public class SatellitePortfolioDbContext(DbContextOptions<SatellitePortfolioDbCo
             entity.Property(x => x.Quantity).HasColumnType("numeric(20,8)").IsRequired();
             entity.Property(x => x.PriceAmount).HasColumnType("numeric(20,4)").IsRequired();
             entity.Property(x => x.FeesAmount).HasColumnType("numeric(20,4)").IsRequired();
+            entity.Property(x => x.CostBasisMode).HasConversion<int?>();
+            entity.Property(x => x.CustomTotalCost).HasColumnType("numeric(20,4)");
             entity.Property(x => x.ExecutedAt).IsRequired();
             entity.Property(x => x.Notes).HasMaxLength(2000);
             entity.Property(x => x.CreatedAt).IsRequired();
             entity.Property(x => x.CorrectionGroupId).HasConversion(IdConverters.NullableCorrectionGroupIdConverter);
             entity.Property(x => x.CorrectedByTradeId).HasConversion(IdConverters.NullableTradeIdConverter);
+            entity.Property(x => x.CorrectionReasonLookupId).HasConversion(IdConverters.NullableCorrectionReasonLookupIdConverter);
             entity.Property(x => x.IsCorrectionReversal).IsRequired();
+
+            entity.HasOne<CorrectionReasonLookup>()
+                .WithMany()
+                .HasForeignKey(x => x.CorrectionReasonLookupId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 
@@ -115,10 +177,14 @@ public class SatellitePortfolioDbContext(DbContextOptions<SatellitePortfolioDbCo
             entity.Property(x => x.InstrumentId).HasConversion(IdConverters.InstrumentIdConverter).IsRequired();
             entity.Property(x => x.Date).IsRequired();
             entity.Property(x => x.ClosePriceAmount).HasColumnType("numeric(20,4)").IsRequired();
-            entity.Property(x => x.Source).HasConversion<int>().IsRequired();
+            entity.Property(x => x.PriceSourceLookupId).HasConversion(IdConverters.PriceSourceLookupIdConverter).IsRequired();
             entity.Property(x => x.CreatedAt).IsRequired();
 
             entity.HasIndex(x => new { x.InstrumentId, x.Date }).IsUnique();
+            entity.HasOne<PriceSourceLookup>()
+                .WithMany()
+                .HasForeignKey(x => x.PriceSourceLookupId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -212,6 +278,9 @@ public static class IdConverters
     public static readonly ValueConverter<TradeId, Guid> TradeIdConverter = new(v => v.Value, v => new TradeId(v));
     public static readonly ValueConverter<CashEntryId, Guid> CashEntryIdConverter = new(v => v.Value, v => new CashEntryId(v));
     public static readonly ValueConverter<PriceSnapshotId, Guid> PriceSnapshotIdConverter = new(v => v.Value, v => new PriceSnapshotId(v));
+    public static readonly ValueConverter<SectorLookupId, Guid> SectorLookupIdConverter = new(v => v.Value, v => new SectorLookupId(v));
+    public static readonly ValueConverter<PriceSourceLookupId, Guid> PriceSourceLookupIdConverter = new(v => v.Value, v => new PriceSourceLookupId(v));
+    public static readonly ValueConverter<CorrectionReasonLookupId, Guid> CorrectionReasonLookupIdConverter = new(v => v.Value, v => new CorrectionReasonLookupId(v));
     public static readonly ValueConverter<JournalEntryId, Guid> JournalEntryIdConverter = new(v => v.Value, v => new JournalEntryId(v));
     public static readonly ValueConverter<ThesisId, Guid> ThesisIdConverter = new(v => v.Value, v => new ThesisId(v));
     public static readonly ValueConverter<RuleId, Guid> RuleIdConverter = new(v => v.Value, v => new RuleId(v));
@@ -228,5 +297,11 @@ public static class IdConverters
     public static readonly ValueConverter<InstrumentId?, Guid?> NullableInstrumentIdConverter = new(
         v => v.HasValue ? v.Value.Value : null,
         v => v.HasValue ? new InstrumentId(v.Value) : null);
+    public static readonly ValueConverter<SectorLookupId?, Guid?> NullableSectorLookupIdConverter = new(
+        v => v.HasValue ? v.Value.Value : null,
+        v => v.HasValue ? new SectorLookupId(v.Value) : null);
+    public static readonly ValueConverter<CorrectionReasonLookupId?, Guid?> NullableCorrectionReasonLookupIdConverter = new(
+        v => v.HasValue ? v.Value.Value : null,
+        v => v.HasValue ? new CorrectionReasonLookupId(v.Value) : null);
 }
 

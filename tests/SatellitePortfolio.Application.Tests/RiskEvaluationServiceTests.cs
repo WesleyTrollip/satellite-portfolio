@@ -56,7 +56,7 @@ public class RiskEvaluationServiceTests
             InstrumentId = instrumentId,
             Date = new DateOnly(2026, 1, 2),
             ClosePriceAmount = 210m,
-            Source = PriceSnapshotSource.Manual,
+            PriceSourceLookupId = new PriceSourceLookupId(Guid.NewGuid()),
             CreatedAt = DateTime.UtcNow
         });
 

@@ -116,7 +116,7 @@ Purpose:
 
 Required fields:
 
-- Instrument ID (GUID)
+- Instrument (lookup select)
 - Side (`Buy` or `Sell`)
 - Quantity
 - Price
@@ -127,16 +127,16 @@ Required fields:
 
 Required fields:
 
-- Trade ID (GUID)
+- Selected trade row (`Edit` action)
 - Corrected quantity/price/fees/executedAt
-- Reason
+- Correction reason (lookup select)
 
 How corrections appear:
 
 - UI shows grouped correction audit chains:
   - reversal entry
   - replacement entry
-  - extracted reason (if provided in notes)
+  - selected correction reason label
 
 Backed by:
 
@@ -155,15 +155,16 @@ Purpose:
 
 Required fields:
 
-- Instrument ID (GUID)
+- Instrument (lookup select)
 - Date
 - Close Price
-- Source
+- Source (lookup select)
 
 Behavior:
 
 - Upsert is idempotent by `(instrumentId, date)`.
 - Posting same instrument/date updates existing snapshot.
+- Use row-level `Edit` in snapshot results to preload update form values.
 
 Backed by:
 
@@ -185,7 +186,7 @@ Fields:
 - title
 - body
 - status (`Active` / `Retired`)
-- optional instrument ID
+- optional linked instrument (lookup select)
 
 ### Create / Update Journal Entry
 
@@ -195,7 +196,14 @@ Fields:
 - title
 - body
 - tags
-- optional linked thesis
+- optional linked thesis (lookup select)
+- optional linked instrument (lookup select)
+
+Update behavior:
+
+- Select a row in `Journal Entries` and click `Edit`.
+- The update form preloads existing values.
+- Use `Cancel` to reset edit mode.
 
 Backed by:
 
@@ -227,6 +235,12 @@ Fields:
 - enabled flag
 - parameters JSON
 
+Update behavior:
+
+- Update always starts from `Current Rules` table row `Edit`.
+- Selected rule is preloaded into the update form.
+- Use `Cancel` to clear the selection.
+
 Example `parametersJson`:
 
 - Position size: `{"maxPct":0.10}`
@@ -244,13 +258,14 @@ Backed by:
 
 Recommended sequence:
 
-1. Add instruments
-2. Add initial cash entries
-3. Create buy/sell trades
-4. Enter EOD prices
-5. Review Overview and Holdings
-6. Add journal/thesis context
-7. Configure risk rules and monitor alerts
+1. Create/maintain lookup data (sectors, price sources, correction reasons)
+2. Add instruments (linked to sector lookup where applicable)
+3. Add initial cash entries
+4. Create buy/sell trades from instrument lookup selection
+5. Enter EOD prices using instrument + source lookup selections
+6. Review Overview and Holdings
+7. Add journal/thesis context via lookup selections
+8. Configure risk rules and monitor alerts
 
 ## 6) Demo Data (Optional)
 
@@ -301,6 +316,63 @@ Expected if no data exists. Add:
 ## 8) Current MVP Notes
 
 - This is a decision-support tracker, not an execution platform.
-- Some pages are functional scaffolds and will continue to evolve.
 - Corrections are auditable and shown as chain events, not silent overwrites.
+- Normal user workflows avoid manual GUID entry; IDs are selected from lookup-backed lists/tables.
+
+## 9) Lookup Management
+
+Lookup values are managed through API CRUD and consumed by the UI. Records can be updated to inactive (`isActive=false`) or deleted when unreferenced.
+
+### Admin UI
+
+Use the `Admin` page in the top navigation to manage:
+
+- sectors
+- price sources
+- correction reasons
+- instruments
+
+Each table supports:
+
+- row `Edit` to preload form fields
+- `Save` to update
+- `Cancel` to reset form state
+- `Delete` to remove records when unreferenced
+
+Delete behavior:
+
+- Deletes are hard-delete attempts.
+- If a record is still referenced (for example by trades, prices, journal, or theses), the API returns conflict and the UI shows the message.
+
+### Sector lookups
+
+- `GET /api/lookups/sectors?search=&isActive=&skip=&take=`
+- `GET /api/lookups/sectors/{id}`
+- `POST /api/lookups/sectors`
+- `PUT /api/lookups/sectors/{id}`
+- `DELETE /api/lookups/sectors/{id}` (hard delete, blocked when referenced)
+
+### Price source lookups
+
+- `GET /api/lookups/price-sources?search=&isActive=&skip=&take=`
+- `GET /api/lookups/price-sources/{id}`
+- `POST /api/lookups/price-sources`
+- `PUT /api/lookups/price-sources/{id}`
+- `DELETE /api/lookups/price-sources/{id}` (hard delete, blocked when referenced)
+
+### Correction reason lookups
+
+- `GET /api/lookups/correction-reasons?search=&isActive=&skip=&take=`
+- `GET /api/lookups/correction-reasons/{id}`
+- `POST /api/lookups/correction-reasons`
+- `PUT /api/lookups/correction-reasons/{id}`
+- `DELETE /api/lookups/correction-reasons/{id}` (hard delete, blocked when referenced)
+
+### Instruments (master data)
+
+- `GET /api/instruments`
+- `GET /api/instruments/{instrumentId}`
+- `POST /api/instruments`
+- `PUT /api/instruments/{instrumentId}`
+- `DELETE /api/instruments/{instrumentId}` (hard delete, blocked when referenced)
 

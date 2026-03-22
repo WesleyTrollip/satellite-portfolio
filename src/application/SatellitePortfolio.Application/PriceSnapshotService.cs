@@ -6,11 +6,12 @@ public sealed record UpsertPriceSnapshotRequest(
     Guid InstrumentId,
     DateOnly Date,
     decimal ClosePriceAmount,
-    PriceSnapshotSource Source);
+    Guid PriceSourceLookupId);
 
 public sealed class PriceSnapshotService(
     IPriceSnapshotRepository priceSnapshots,
     IInstrumentRepository instruments,
+    IPriceSourceLookupRepository priceSources,
     IPortfolioUnitOfWork unitOfWork)
 {
     public Task<IReadOnlyCollection<PriceSnapshot>> ListAsync(
@@ -34,6 +35,13 @@ public sealed class PriceSnapshotService(
             throw new InvalidOperationException($"Instrument '{request.InstrumentId}' was not found.");
         }
 
+        var priceSourceLookupId = new PriceSourceLookupId(request.PriceSourceLookupId);
+        var priceSource = await priceSources.GetByIdAsync(priceSourceLookupId, cancellationToken);
+        if (priceSource is null || !priceSource.IsActive)
+        {
+            throw new InvalidOperationException($"Price source '{request.PriceSourceLookupId}' is invalid or inactive.");
+        }
+
         var existing = await priceSnapshots.GetByInstrumentAndDateAsync(instrumentId, request.Date, cancellationToken);
         if (existing is null)
         {
@@ -43,7 +51,7 @@ public sealed class PriceSnapshotService(
                 InstrumentId = instrumentId,
                 Date = request.Date,
                 ClosePriceAmount = request.ClosePriceAmount,
-                Source = request.Source,
+                PriceSourceLookupId = priceSourceLookupId,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -58,7 +66,7 @@ public sealed class PriceSnapshotService(
             InstrumentId = existing.InstrumentId,
             Date = existing.Date,
             ClosePriceAmount = request.ClosePriceAmount,
-            Source = request.Source,
+            PriceSourceLookupId = priceSourceLookupId,
             CreatedAt = existing.CreatedAt
         };
 

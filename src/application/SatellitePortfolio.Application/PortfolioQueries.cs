@@ -54,6 +54,7 @@ public sealed record MonthlyPortfolioStateView(
 
 public sealed class PortfolioQueryService(
     IInstrumentRepository instruments,
+    ISectorLookupRepository sectors,
     ITradeRepository trades,
     ICashLedgerRepository cashEntries,
     IPriceSnapshotRepository prices,
@@ -64,13 +65,14 @@ public sealed class PortfolioQueryService(
     {
         var effectiveAsOf = asOf ?? DateTime.UtcNow;
         var allInstruments = await instruments.ListAsync(cancellationToken);
+        var allSectors = await sectors.ListAsync(null, true, 0, 2000, cancellationToken);
         var allTrades = await trades.ListAllAsync(cancellationToken);
         var allCash = await cashEntries.ListAllAsync(cancellationToken);
         var allPrices = await prices.ListAllAsync(cancellationToken);
         var currentAlerts = await alerts.ListCurrentAsync(cancellationToken);
 
         var snapshot = holdingsCalculator.CalculateSnapshot(allTrades, allCash, allPrices, effectiveAsOf);
-        var holdings = MapHoldings(snapshot.Holdings, allInstruments);
+        var holdings = MapHoldings(snapshot.Holdings, allInstruments, allSectors);
         var sectorAllocations = BuildSectorAllocations(holdings);
         var alertViews = currentAlerts
             .OrderByDescending(x => x.TriggeredAt)
@@ -101,11 +103,12 @@ public sealed class PortfolioQueryService(
     {
         var effectiveAsOf = asOf ?? DateTime.UtcNow;
         var allInstruments = await instruments.ListAsync(cancellationToken);
+        var allSectors = await sectors.ListAsync(null, true, 0, 2000, cancellationToken);
         var allTrades = await trades.ListAllAsync(cancellationToken);
         var allCash = await cashEntries.ListAllAsync(cancellationToken);
         var allPrices = await prices.ListAllAsync(cancellationToken);
         var snapshot = holdingsCalculator.CalculateSnapshot(allTrades, allCash, allPrices, effectiveAsOf);
-        return MapHoldings(snapshot.Holdings, allInstruments);
+        return MapHoldings(snapshot.Holdings, allInstruments, allSectors);
     }
 
     public async Task<HoldingView?> GetHoldingAsync(InstrumentId instrumentId, DateTime? asOf, CancellationToken cancellationToken)
@@ -123,12 +126,13 @@ public sealed class PortfolioQueryService(
 
         var asOf = new DateTime(year, month, DateTime.DaysInMonth(year, month), 23, 59, 59, DateTimeKind.Utc);
         var allInstruments = await instruments.ListAsync(cancellationToken);
+        var allSectors = await sectors.ListAsync(null, true, 0, 2000, cancellationToken);
         var allTrades = await trades.ListAllAsync(cancellationToken);
         var allCash = await cashEntries.ListAllAsync(cancellationToken);
         var allPrices = await prices.ListAllAsync(cancellationToken);
 
         var snapshot = holdingsCalculator.CalculateSnapshot(allTrades, allCash, allPrices, asOf);
-        var holdings = MapHoldings(snapshot.Holdings, allInstruments);
+        var holdings = MapHoldings(snapshot.Holdings, allInstruments, allSectors);
         var sectorAllocations = BuildSectorAllocations(holdings);
 
         return new MonthlyPortfolioStateView(
@@ -145,19 +149,26 @@ public sealed class PortfolioQueryService(
             sectorAllocations);
     }
 
-    private static List<HoldingView> MapHoldings(IEnumerable<Holding> holdings, IReadOnlyCollection<Instrument> instruments)
+    private static List<HoldingView> MapHoldings(
+        IEnumerable<Holding> holdings,
+        IReadOnlyCollection<Instrument> instruments,
+        IReadOnlyCollection<SectorLookup> sectors)
     {
         var instrumentMap = instruments.ToDictionary(x => x.Id, x => x);
+        var sectorMap = sectors.ToDictionary(x => x.Id, x => x.Name);
         return holdings
             .OrderByDescending(x => x.MarketValue.Amount)
             .Select(h =>
             {
                 instrumentMap.TryGetValue(h.InstrumentId, out var instrument);
+                var sector = instrument?.SectorLookupId is not null && sectorMap.TryGetValue(instrument.SectorLookupId.Value, out var sectorName)
+                    ? sectorName
+                    : instrument?.Sector;
                 var missing = !h.HasPrice;
                 return new HoldingView(
                     h.InstrumentId.Value,
                     instrument?.Symbol ?? "UNKNOWN",
-                    instrument?.Sector,
+                    sector,
                     h.Quantity,
                     h.AverageCost.Amount,
                     h.MarketValue.Amount,

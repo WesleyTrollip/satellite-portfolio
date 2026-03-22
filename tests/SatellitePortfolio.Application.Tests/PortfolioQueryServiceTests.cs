@@ -52,12 +52,12 @@ public class PortfolioQueryServiceTests
             InstrumentId = instrumentId,
             Date = new DateOnly(2026, 2, 1),
             ClosePriceAmount = 120m,
-            Source = PriceSnapshotSource.Manual,
+            PriceSourceLookupId = new PriceSourceLookupId(Guid.NewGuid()),
             CreatedAt = DateTime.UtcNow
         });
 
         var alerts = new InMemoryAlertEventRepository();
-        var queryService = new PortfolioQueryService(instruments, trades, cash, prices, alerts, new HoldingsCalculator());
+        var queryService = new PortfolioQueryService(instruments, new InMemorySectorLookupRepository(), trades, cash, prices, alerts, new HoldingsCalculator());
         var result = await queryService.GetOverviewAsync(new DateTime(2026, 2, 1, 20, 0, 0, DateTimeKind.Utc), CancellationToken.None);
 
         Assert.Equal(1_200m, result.TotalMarketValue);
@@ -98,6 +98,7 @@ public class PortfolioQueryServiceTests
 
         var queryService = new PortfolioQueryService(
             instruments,
+            new InMemorySectorLookupRepository(),
             trades,
             new InMemoryCashLedgerRepository(),
             new InMemoryPriceSnapshotRepository(),
@@ -146,7 +147,7 @@ public class PortfolioQueryServiceTests
             InstrumentId = instrumentId,
             Date = new DateOnly(2026, 1, 31),
             ClosePriceAmount = 55m,
-            Source = PriceSnapshotSource.Manual,
+            PriceSourceLookupId = new PriceSourceLookupId(Guid.NewGuid()),
             CreatedAt = DateTime.UtcNow
         });
         prices.Items.Add(new PriceSnapshot
@@ -155,12 +156,13 @@ public class PortfolioQueryServiceTests
             InstrumentId = instrumentId,
             Date = new DateOnly(2026, 2, 28),
             ClosePriceAmount = 70m,
-            Source = PriceSnapshotSource.Manual,
+            PriceSourceLookupId = new PriceSourceLookupId(Guid.NewGuid()),
             CreatedAt = DateTime.UtcNow
         });
 
         var queryService = new PortfolioQueryService(
             instruments,
+            new InMemorySectorLookupRepository(),
             trades,
             new InMemoryCashLedgerRepository(),
             prices,
@@ -200,6 +202,12 @@ internal sealed class InMemoryInstrumentRepository : IInstrumentRepository
             Items[index] = instrument;
         }
 
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(Instrument instrument, CancellationToken cancellationToken)
+    {
+        Items.RemoveAll(x => x.Id == instrument.Id);
         return Task.CompletedTask;
     }
 }

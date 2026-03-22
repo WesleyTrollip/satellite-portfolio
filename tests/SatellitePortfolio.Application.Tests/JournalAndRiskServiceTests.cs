@@ -145,5 +145,8 @@ internal sealed class InMemoryJournalLinkRepository : IJournalLinkRepository
         _instrumentLinks.RemoveAll(x => x.JournalEntryId == journalEntryId);
         return Task.CompletedTask;
     }
+
+    public Task<int> CountByInstrumentIdAsync(InstrumentId instrumentId, CancellationToken cancellationToken)
+        => Task.FromResult(_instrumentLinks.Count(x => x.InstrumentId == instrumentId));
 }
 

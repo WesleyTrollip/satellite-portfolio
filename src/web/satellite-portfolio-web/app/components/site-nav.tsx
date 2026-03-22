@@ -9,7 +9,8 @@ const navItems = [
   { href: "/trades", label: "Trades" },
   { href: "/prices", label: "Prices" },
   { href: "/journal", label: "Journal" },
-  { href: "/rules", label: "Rules" }
+  { href: "/rules", label: "Rules" },
+  { href: "/admin", label: "Admin" }
 ];
 
 export function SiteNav() {

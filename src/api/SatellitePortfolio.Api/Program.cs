@@ -2,11 +2,13 @@ using SatellitePortfolio.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 using SatellitePortfolio.Application;
 using SatellitePortfolio.Api;
 using SatellitePortfolio.Domain;
 
 var builder = WebApplication.CreateBuilder(args);
+const string FrontendCorsPolicy = "FrontendCors";
 
 // Add services to the container
 builder.Services.AddEndpointsApiExplorer();
@@ -19,8 +21,28 @@ builder.Services.AddProblemDetails(options =>
     };
 });
 
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? ["http://localhost:3000"];
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        FrontendCorsPolicy,
+        policy =>
+        {
+            policy
+                .WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
+
 builder.Services
     .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    })
     .ConfigureApiBehaviorOptions(options =>
     {
         options.InvalidModelStateResponseFactory = context =>
@@ -43,6 +65,9 @@ builder.Services
 
 builder.Services.AddScoped<IUserContext, LocalUserContext>();
 builder.Services.AddScoped<IInstrumentRepository, InstrumentRepository>();
+builder.Services.AddScoped<ISectorLookupRepository, SectorLookupRepository>();
+builder.Services.AddScoped<IPriceSourceLookupRepository, PriceSourceLookupRepository>();
+builder.Services.AddScoped<ICorrectionReasonLookupRepository, CorrectionReasonLookupRepository>();
 builder.Services.AddScoped<ITradeRepository, TradeRepository>();
 builder.Services.AddScoped<ICashLedgerRepository, CashLedgerRepository>();
 builder.Services.AddScoped<IPriceSnapshotRepository, PriceSnapshotRepository>();
@@ -55,6 +80,9 @@ builder.Services.AddScoped<IPortfolioUnitOfWork, PortfolioUnitOfWork>();
 builder.Services.AddScoped<IHoldingsCalculator, HoldingsCalculator>();
 builder.Services.AddScoped<IPortfolioRuleEvaluator, PortfolioRuleEvaluator>();
 builder.Services.AddScoped<InstrumentService>();
+builder.Services.AddScoped<SectorLookupService>();
+builder.Services.AddScoped<PriceSourceLookupService>();
+builder.Services.AddScoped<CorrectionReasonLookupService>();
 builder.Services.AddScoped<TradeService>();
 builder.Services.AddScoped<CashLedgerService>();
 builder.Services.AddScoped<PortfolioQueryService>();
@@ -89,6 +117,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseCors(FrontendCorsPolicy);
 
 using (var scope = app.Services.CreateScope())
 {

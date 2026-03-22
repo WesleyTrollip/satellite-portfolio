@@ -1,74 +1,87 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { CostBasisMode, getCorrectionReasons, getInstruments, getTrades, InstrumentView, LookupItem, TradeSide, TradeView } from "../../lib/api";
 import { CardSection, EmptyState, FieldLabel, PageHeader, StatusMessage } from "../components/ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5014/api";
 
-type Trade = {
-  id: { value: string } | string;
-  instrumentId: { value: string } | string;
-  side: number | string;
-  quantity: number;
-  priceAmount: number;
-  feesAmount: number;
+type CorrectionDraft = {
+  quantity: string;
+  priceAmount: string;
+  feesAmount: string;
+  costBasisMode: CostBasisMode;
+  customTotalCost: string;
   executedAt: string;
-  notes?: string;
-  correctionGroupId?: { value: string } | string | null;
-  correctedByTradeId?: { value: string } | string | null;
-  isCorrectionReversal?: boolean;
+  notes: string;
+  correctionReasonLookupId: string;
 };
 
 type TradeAuditChain = {
   correctionGroupId: string;
-  items: Trade[];
+  items: TradeView[];
 };
 
 export default function TradesPage() {
-  const [trades, setTrades] = useState<Trade[]>([]);
+  const [trades, setTrades] = useState<TradeView[]>([]);
+  const [instruments, setInstruments] = useState<InstrumentView[]>([]);
+  const [correctionReasons, setCorrectionReasons] = useState<LookupItem[]>([]);
   const [instrumentId, setInstrumentId] = useState("");
-  const [tradeIdToCorrect, setTradeIdToCorrect] = useState("");
+  const [createSide, setCreateSide] = useState<1 | 2 | 3>(1);
+  const [createCostBasisMode, setCreateCostBasisMode] = useState<CostBasisMode>("Zero");
+  const [createCustomTotalCost, setCreateCustomTotalCost] = useState("");
+  const [tradeToCorrect, setTradeToCorrect] = useState<TradeView | null>(null);
+  const [lookupError, setLookupError] = useState("");
+  const [lookupsLoading, setLookupsLoading] = useState(true);
+  const [correctionDraft, setCorrectionDraft] = useState<CorrectionDraft>({
+    quantity: "",
+    priceAmount: "",
+    feesAmount: "0",
+    costBasisMode: "Zero",
+    customTotalCost: "",
+    executedAt: "",
+    notes: "",
+    correctionReasonLookupId: ""
+  });
   const [status, setStatus] = useState("");
 
   const refresh = async () => {
-    const response = await fetch(`${API_BASE_URL}/trades`);
-    const data = await response.json();
+    const data = await getTrades();
     setTrades(data);
   };
 
-  const getId = (value: { value: string } | string | null | undefined): string =>
-    value == null ? "" : typeof value === "string" ? value : value.value;
-
-  const getSideLabel = (side: number | string): string => {
-    if (side === 1 || side === "1" || side === "Buy") {
+  const getSideLabel = (side: TradeSide): string => {
+    if (side === 1 || side === "Buy") {
       return "Buy";
     }
 
-    if (side === 2 || side === "2" || side === "Sell") {
+    if (side === 2 || side === "Sell") {
       return "Sell";
+    }
+
+    if (side === 3 || side === "NonCashAcquisition") {
+      return "Non-cash acquisition";
     }
 
     return String(side);
   };
 
-  const getCorrectionReason = (notes: string | undefined): string | null => {
-    if (!notes) {
-      return null;
+  const normalizeTradeSide = (side: TradeSide): 1 | 2 | 3 => {
+    if (side === 1 || side === "Buy") {
+      return 1;
     }
 
-    const marker = "Correction reason:";
-    const index = notes.indexOf(marker);
-    if (index < 0) {
-      return null;
+    if (side === 2 || side === "Sell") {
+      return 2;
     }
 
-    return notes.substring(index + marker.length).trim();
+    return 3;
   };
 
-  const buildCorrectionChains = (history: Trade[]): TradeAuditChain[] => {
-    const grouped = new Map<string, Trade[]>();
+  const buildCorrectionChains = (history: TradeView[]): TradeAuditChain[] => {
+    const grouped = new Map<string, TradeView[]>();
     for (const trade of history) {
-      const groupId = getId(trade.correctionGroupId ?? null);
+      const groupId = trade.correctionGroupId ?? "";
       if (!groupId) {
         continue;
       }
@@ -86,19 +99,54 @@ export default function TradesPage() {
     }));
   };
 
+  const instrumentOptions = useMemo(
+    () =>
+      instruments.map((instrument) => {
+        const id = typeof instrument.id === "string" ? instrument.id : instrument.id.value;
+        const label =
+          instrument.name && instrument.name.trim().length > 0
+            ? `${instrument.symbol} - ${instrument.name}`
+            : instrument.symbol;
+        return { id, label };
+      }),
+    [instruments]
+  );
+
   useEffect(() => {
+    Promise.all([getInstruments(), getCorrectionReasons(true)])
+      .then(([instrumentData, reasonData]) => {
+        setInstruments(instrumentData);
+        setCorrectionReasons(reasonData);
+        setLookupError("");
+      })
+      .catch(() => setLookupError("Failed to load instrument/correction reason lookups."))
+      .finally(() => setLookupsLoading(false));
+
     refresh().catch(() => setStatus("Failed to load trades."));
   }, []);
 
   const submitTrade = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    if (!instrumentId) {
+      setStatus("Select an instrument before creating a trade.");
+      return;
+    }
+
+    const isCreateNonCash = createSide === 3;
+    if (isCreateNonCash && createCostBasisMode === "Custom" && (!createCustomTotalCost || Number(createCustomTotalCost) < 0)) {
+      setStatus("Provide a valid custom total cost for non-cash acquisition.");
+      return;
+    }
+
     const payload = {
       instrumentId,
-      side: form.get("side"),
+      side: createSide,
       quantity: Number(form.get("quantity")),
-      priceAmount: Number(form.get("priceAmount")),
-      feesAmount: Number(form.get("feesAmount")),
+      priceAmount: isCreateNonCash ? 0 : Number(form.get("priceAmount")),
+      feesAmount: isCreateNonCash ? 0 : Number(form.get("feesAmount")),
+      costBasisMode: isCreateNonCash ? createCostBasisMode : null,
+      customTotalCost: isCreateNonCash && createCostBasisMode === "Custom" ? Number(createCustomTotalCost) : null,
       executedAt: form.get("executedAt"),
       notes: form.get("notes")
     };
@@ -117,17 +165,41 @@ export default function TradesPage() {
 
   const submitCorrection = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    if (!tradeToCorrect) {
+      setStatus("Choose a trade row to edit before saving a correction.");
+      return;
+    }
+
+    if (!correctionDraft.correctionReasonLookupId) {
+      setStatus("Select a correction reason.");
+      return;
+    }
+
+    const isCorrectionNonCash = normalizeTradeSide(tradeToCorrect.side) === 3;
+    if (
+      isCorrectionNonCash &&
+      correctionDraft.costBasisMode === "Custom" &&
+      (!correctionDraft.customTotalCost || Number(correctionDraft.customTotalCost) < 0)
+    ) {
+      setStatus("Provide a valid custom total cost for non-cash acquisition correction.");
+      return;
+    }
+
     const payload = {
-      quantity: Number(form.get("quantity")),
-      priceAmount: Number(form.get("priceAmount")),
-      feesAmount: Number(form.get("feesAmount")),
-      executedAt: form.get("executedAt"),
-      notes: form.get("notes"),
-      reason: form.get("reason")
+      quantity: Number(correctionDraft.quantity),
+      priceAmount: isCorrectionNonCash ? 0 : Number(correctionDraft.priceAmount),
+      feesAmount: isCorrectionNonCash ? 0 : Number(correctionDraft.feesAmount),
+      costBasisMode: isCorrectionNonCash ? correctionDraft.costBasisMode : null,
+      customTotalCost:
+        isCorrectionNonCash && correctionDraft.costBasisMode === "Custom"
+          ? Number(correctionDraft.customTotalCost)
+          : null,
+      executedAt: correctionDraft.executedAt,
+      notes: correctionDraft.notes || null,
+      correctionReasonLookupId: correctionDraft.correctionReasonLookupId
     };
 
-    const response = await fetch(`${API_BASE_URL}/trades/${tradeIdToCorrect}/corrections`, {
+    const response = await fetch(`${API_BASE_URL}/trades/${tradeToCorrect.id}/corrections`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -135,11 +207,51 @@ export default function TradesPage() {
 
     setStatus(response.ok ? "Trade corrected." : "Trade correction failed.");
     if (response.ok) {
+      setTradeToCorrect(null);
       await refresh();
     }
   };
 
+  const startCorrection = (trade: TradeView) => {
+    setTradeToCorrect(trade);
+    const tradeSide = normalizeTradeSide(trade.side);
+    const tradeCostBasisMode = trade.costBasisMode ?? "Zero";
+    setCorrectionDraft({
+      quantity: String(trade.quantity),
+      priceAmount: String(trade.priceAmount),
+      feesAmount: String(trade.feesAmount),
+      costBasisMode: tradeCostBasisMode,
+      customTotalCost: trade.customTotalCost != null ? String(trade.customTotalCost) : "",
+      executedAt: trade.executedAt.slice(0, 16),
+      notes: trade.notes ?? "",
+      correctionReasonLookupId: trade.correctionReasonLookupId ?? ""
+    });
+    if (tradeSide !== 3) {
+      setCorrectionDraft((current) => ({
+        ...current,
+        costBasisMode: "Zero",
+        customTotalCost: ""
+      }));
+    }
+  };
+
+  const cancelCorrection = () => {
+    setTradeToCorrect(null);
+    setCorrectionDraft({
+      quantity: "",
+      priceAmount: "",
+      feesAmount: "0",
+      costBasisMode: "Zero",
+      customTotalCost: "",
+      executedAt: "",
+      notes: "",
+      correctionReasonLookupId: ""
+    });
+  };
+
   const correctionChains = buildCorrectionChains(trades);
+  const isCreateNonCash = createSide === 3;
+  const isCorrectionNonCash = tradeToCorrect ? normalizeTradeSide(tradeToCorrect.side) === 3 : false;
 
   return (
     <section className="page-stack">
@@ -152,16 +264,24 @@ export default function TradesPage() {
             <div>
               <FieldLabel
                 htmlFor="trade-instrument-id"
-                label="Instrument ID"
-                tooltip="Unique GUID of the instrument being traded. Example: 3f8f0d76-1b4a-4cde-9a37-0b9e9d2f4c12"
+                label="Instrument"
+                tooltip="Select the instrument to trade by symbol and name."
               />
-              <input
+              <select
                 id="trade-instrument-id"
                 className="input"
                 value={instrumentId}
                 onChange={(e) => setInstrumentId(e.target.value)}
                 required
-              />
+                disabled={lookupsLoading || !!lookupError}
+              >
+                <option value="">Select instrument</option>
+                {instrumentOptions.map((instrument) => (
+                  <option key={instrument.id} value={instrument.id}>
+                    {instrument.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <FieldLabel
@@ -169,9 +289,16 @@ export default function TradesPage() {
                 label="Side"
                 tooltip="Trade direction. Buy increases position and Sell reduces position. Example: Buy"
               />
-              <select id="trade-side" name="side" defaultValue="1" className="input">
+              <select
+                id="trade-side"
+                name="side"
+                value={createSide}
+                className="input"
+                onChange={(e) => setCreateSide(Number(e.target.value) as 1 | 2 | 3)}
+              >
                 <option value="1">Buy</option>
                 <option value="2">Sell</option>
+                <option value="3">Non-cash acquisition</option>
               </select>
             </div>
             <div>
@@ -188,7 +315,16 @@ export default function TradesPage() {
                 label="Price"
                 tooltip="Per-unit execution price in instrument currency. Example: 185.42"
               />
-              <input id="trade-price" name="priceAmount" type="number" step="0.01" className="input" required />
+              <input
+                id="trade-price"
+                name="priceAmount"
+                type="number"
+                step="0.01"
+                className="input"
+                defaultValue={isCreateNonCash ? "0" : undefined}
+                required={!isCreateNonCash}
+                disabled={isCreateNonCash}
+              />
             </div>
             <div>
               <FieldLabel
@@ -196,8 +332,55 @@ export default function TradesPage() {
                 label="Fees"
                 tooltip="Total fees or commission for this trade. Use 0 when there are none. Example: 1.25"
               />
-              <input id="trade-fees" name="feesAmount" type="number" step="0.01" defaultValue="0" className="input" />
+              <input
+                id="trade-fees"
+                name="feesAmount"
+                type="number"
+                step="0.01"
+                defaultValue="0"
+                className="input"
+                disabled={isCreateNonCash}
+              />
             </div>
+            {isCreateNonCash ? (
+              <>
+                <div>
+                  <FieldLabel
+                    htmlFor="trade-cost-basis-mode"
+                    label="Cost Basis Mode"
+                    tooltip="Choose whether granted shares have zero basis or a custom total basis."
+                  />
+                  <select
+                    id="trade-cost-basis-mode"
+                    className="input"
+                    value={createCostBasisMode}
+                    onChange={(e) => setCreateCostBasisMode(e.target.value as CostBasisMode)}
+                  >
+                    <option value="Zero">Zero</option>
+                    <option value="Custom">Custom</option>
+                  </select>
+                </div>
+                {createCostBasisMode === "Custom" ? (
+                  <div>
+                    <FieldLabel
+                      htmlFor="trade-custom-total-cost"
+                      label="Custom Total Cost"
+                      tooltip="Optional grant basis used for future realized/unrealized PnL calculations."
+                    />
+                    <input
+                      id="trade-custom-total-cost"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="input"
+                      value={createCustomTotalCost}
+                      onChange={(e) => setCreateCustomTotalCost(e.target.value)}
+                      required
+                    />
+                  </div>
+                ) : null}
+              </>
+            ) : null}
             <div>
               <FieldLabel
                 htmlFor="trade-executed-at"
@@ -227,15 +410,14 @@ export default function TradesPage() {
             <div>
               <FieldLabel
                 htmlFor="correction-trade-id"
-                label="Trade ID"
-                tooltip="GUID of the existing trade to correct. Example: 7e6af4b0-3d32-4c9a-89a4-9d4b4f9270d8"
+                label="Selected Trade"
+                tooltip="Pick a trade from the table and click Edit to preload this form."
               />
               <input
                 id="correction-trade-id"
                 className="input"
-                value={tradeIdToCorrect}
-                onChange={(e) => setTradeIdToCorrect(e.target.value)}
-                required
+                value={tradeToCorrect ? `${tradeToCorrect.instrumentLabel} | ${new Date(tradeToCorrect.executedAt).toLocaleString()}` : ""}
+                readOnly
               />
             </div>
             <div>
@@ -244,7 +426,16 @@ export default function TradesPage() {
                 label="Quantity"
                 tooltip="Replacement quantity for the corrected trade. Example: 9.75"
               />
-              <input id="correction-quantity" name="quantity" type="number" step="0.0001" className="input" required />
+              <input
+                id="correction-quantity"
+                name="quantity"
+                type="number"
+                step="0.0001"
+                className="input"
+                value={correctionDraft.quantity}
+                onChange={(e) => setCorrectionDraft((current) => ({ ...current, quantity: e.target.value }))}
+                required
+              />
             </div>
             <div>
               <FieldLabel
@@ -252,7 +443,17 @@ export default function TradesPage() {
                 label="Price"
                 tooltip="Replacement per-unit execution price. Example: 184.95"
               />
-              <input id="correction-price" name="priceAmount" type="number" step="0.01" className="input" required />
+              <input
+                id="correction-price"
+                name="priceAmount"
+                type="number"
+                step="0.01"
+                className="input"
+                value={correctionDraft.priceAmount}
+                onChange={(e) => setCorrectionDraft((current) => ({ ...current, priceAmount: e.target.value }))}
+                required
+                disabled={isCorrectionNonCash}
+              />
             </div>
             <div>
               <FieldLabel
@@ -260,8 +461,58 @@ export default function TradesPage() {
                 label="Fees"
                 tooltip="Replacement total fees for this corrected trade. Example: 1.00"
               />
-              <input id="correction-fees" name="feesAmount" type="number" step="0.01" defaultValue="0" className="input" />
+              <input
+                id="correction-fees"
+                name="feesAmount"
+                type="number"
+                step="0.01"
+                className="input"
+                value={correctionDraft.feesAmount}
+                onChange={(e) => setCorrectionDraft((current) => ({ ...current, feesAmount: e.target.value }))}
+                disabled={isCorrectionNonCash}
+              />
             </div>
+            {isCorrectionNonCash ? (
+              <>
+                <div>
+                  <FieldLabel
+                    htmlFor="correction-cost-basis-mode"
+                    label="Cost Basis Mode"
+                    tooltip="Select zero or custom basis for this non-cash acquisition correction."
+                  />
+                  <select
+                    id="correction-cost-basis-mode"
+                    className="input"
+                    value={correctionDraft.costBasisMode}
+                    onChange={(e) =>
+                      setCorrectionDraft((current) => ({ ...current, costBasisMode: e.target.value as CostBasisMode }))
+                    }
+                  >
+                    <option value="Zero">Zero</option>
+                    <option value="Custom">Custom</option>
+                  </select>
+                </div>
+                {correctionDraft.costBasisMode === "Custom" ? (
+                  <div>
+                    <FieldLabel
+                      htmlFor="correction-custom-total-cost"
+                      label="Custom Total Cost"
+                      tooltip="Custom basis amount used for realized and unrealized PnL."
+                    />
+                    <input
+                      id="correction-custom-total-cost"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="input"
+                      value={correctionDraft.customTotalCost}
+                      onChange={(e) => setCorrectionDraft((current) => ({ ...current, customTotalCost: e.target.value }))}
+                      required
+                    />
+                  </div>
+                ) : null}
+              </>
+            ) : null}
             <div>
               <FieldLabel
                 htmlFor="correction-executed-at"
@@ -273,6 +524,8 @@ export default function TradesPage() {
                 name="executedAt"
                 type="datetime-local"
                 className="input"
+                value={correctionDraft.executedAt}
+                onChange={(e) => setCorrectionDraft((current) => ({ ...current, executedAt: e.target.value }))}
                 required
               />
             </div>
@@ -280,9 +533,24 @@ export default function TradesPage() {
               <FieldLabel
                 htmlFor="correction-reason"
                 label="Reason"
-                tooltip="Required audit reason for this correction. Example: Broker confirmed wrong fill quantity"
+                tooltip="Choose an approved correction reason from lookup data."
               />
-              <input id="correction-reason" name="reason" className="input" required />
+              <select
+                id="correction-reason"
+                className="input"
+                value={correctionDraft.correctionReasonLookupId}
+                onChange={(e) =>
+                  setCorrectionDraft((current) => ({ ...current, correctionReasonLookupId: e.target.value }))
+                }
+                required
+              >
+                <option value="">Select reason</option>
+                {correctionReasons.map((reason) => (
+                  <option key={reason.id} value={reason.id}>
+                    {reason.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="sm:col-span-2">
               <FieldLabel
@@ -290,16 +558,27 @@ export default function TradesPage() {
                 label="Notes"
                 tooltip="Optional additional context to store with the correction. Example: Ticket #BRK-18423"
               />
-              <input id="correction-notes" name="notes" className="input" />
+              <input
+                id="correction-notes"
+                name="notes"
+                className="input"
+                value={correctionDraft.notes}
+                onChange={(e) => setCorrectionDraft((current) => ({ ...current, notes: e.target.value }))}
+              />
             </div>
             <div className="sm:col-span-2">
               <button type="submit" className="btn-primary">
                 Correct
               </button>
+              <button type="button" className="btn-secondary ml-2" onClick={cancelCorrection}>
+                Cancel
+              </button>
             </div>
           </form>
         </CardSection>
       </div>
+      {lookupsLoading ? <p className="muted">Loading lookup data...</p> : null}
+      {lookupError ? <p className="muted">{lookupError}</p> : null}
 
       <CardSection title="Trade History">
         {trades.length === 0 ? (
@@ -310,7 +589,7 @@ export default function TradesPage() {
               <thead>
                 <tr>
                   <th scope="col">Trade ID</th>
-                  <th scope="col">Instrument ID</th>
+                  <th scope="col">Instrument</th>
                   <th scope="col">Side</th>
                   <th scope="col" className="text-right">
                     Quantity
@@ -321,21 +600,37 @@ export default function TradesPage() {
                   <th scope="col" className="text-right">
                     Fees
                   </th>
+                  <th scope="col">Cost Basis</th>
                   <th scope="col">Executed At</th>
+                  <th scope="col">Correction Reason</th>
                   <th scope="col">Notes</th>
+                  <th scope="col">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {trades.map((trade) => (
-                  <tr key={getId(trade.id)}>
-                    <td>{getId(trade.id)}</td>
-                    <td>{getId(trade.instrumentId)}</td>
+                  <tr key={trade.id}>
+                    <td>{trade.id}</td>
+                    <td>{trade.instrumentLabel}</td>
                     <td>{getSideLabel(trade.side)}</td>
                     <td className="text-right">{trade.quantity}</td>
                     <td className="text-right">{trade.priceAmount}</td>
                     <td className="text-right">{trade.feesAmount}</td>
+                    <td>
+                      {normalizeTradeSide(trade.side) === 3
+                        ? trade.costBasisMode === "Custom"
+                          ? `Custom (${trade.customTotalCost ?? 0})`
+                          : "Zero"
+                        : "-"}
+                    </td>
                     <td>{new Date(trade.executedAt).toLocaleString()}</td>
+                    <td>{trade.correctionReasonName ?? "-"}</td>
                     <td>{trade.notes ?? "-"}</td>
+                    <td>
+                      <button type="button" className="btn-secondary" onClick={() => startCorrection(trade)}>
+                        Edit
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -354,13 +649,13 @@ export default function TradesPage() {
                 <h3 className="mb-2">Correction Group: {chain.correctionGroupId}</h3>
                 <ol className="list-inside list-decimal space-y-1 text-sm">
                   {chain.items.map((item) => (
-                    <li key={getId(item.id)}>
+                    <li key={item.id}>
                       <span className="font-semibold">{item.isCorrectionReversal ? "Reversal" : "Replacement"}</span>
                       {" - "}
                       {getSideLabel(item.side)} {item.quantity} @ {item.priceAmount}
                       {" | "}
                       {new Date(item.executedAt).toLocaleString()}
-                      {getCorrectionReason(item.notes) ? ` | Reason: ${getCorrectionReason(item.notes)}` : ""}
+                      {item.correctionReasonName ? ` | Reason: ${item.correctionReasonName}` : ""}
                     </li>
                   ))}
                 </ol>

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SatellitePortfolio.Application;
 using SatellitePortfolio.Domain;
+using System.Text.Json;
 
 namespace SatellitePortfolio.Infrastructure;
 
@@ -18,6 +19,150 @@ public sealed class InstrumentRepository(SatellitePortfolioDbContext dbContext) 
     public Task UpdateAsync(Instrument instrument, CancellationToken cancellationToken)
     {
         dbContext.Instruments.Update(instrument);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(Instrument instrument, CancellationToken cancellationToken)
+    {
+        dbContext.Instruments.Remove(instrument);
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class SectorLookupRepository(SatellitePortfolioDbContext dbContext) : ISectorLookupRepository
+{
+    public async Task<IReadOnlyCollection<SectorLookup>> ListAsync(
+        string? search,
+        bool? isActive,
+        int skip,
+        int take,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.SectorLookups.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalized = search.Trim().ToUpperInvariant();
+            query = query.Where(x => x.Code.Contains(normalized) || x.Name.ToUpper().Contains(normalized));
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == isActive.Value);
+        }
+
+        return await query.OrderBy(x => x.Name).Skip(skip).Take(take).ToListAsync(cancellationToken);
+    }
+
+    public Task<SectorLookup?> GetByIdAsync(SectorLookupId sectorLookupId, CancellationToken cancellationToken)
+        => dbContext.SectorLookups.SingleOrDefaultAsync(x => x.Id == sectorLookupId, cancellationToken);
+
+    public Task<SectorLookup?> GetByCodeAsync(string code, CancellationToken cancellationToken)
+        => dbContext.SectorLookups.SingleOrDefaultAsync(x => x.Code == code, cancellationToken);
+
+    public async Task AddAsync(SectorLookup sectorLookup, CancellationToken cancellationToken)
+        => await dbContext.SectorLookups.AddAsync(sectorLookup, cancellationToken);
+
+    public Task UpdateAsync(SectorLookup sectorLookup, CancellationToken cancellationToken)
+    {
+        dbContext.SectorLookups.Update(sectorLookup);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(SectorLookup sectorLookup, CancellationToken cancellationToken)
+    {
+        dbContext.SectorLookups.Remove(sectorLookup);
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class PriceSourceLookupRepository(SatellitePortfolioDbContext dbContext) : IPriceSourceLookupRepository
+{
+    public async Task<IReadOnlyCollection<PriceSourceLookup>> ListAsync(
+        string? search,
+        bool? isActive,
+        int skip,
+        int take,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.PriceSourceLookups.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalized = search.Trim().ToUpperInvariant();
+            query = query.Where(x => x.Code.Contains(normalized) || x.Name.ToUpper().Contains(normalized));
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == isActive.Value);
+        }
+
+        return await query.OrderBy(x => x.Name).Skip(skip).Take(take).ToListAsync(cancellationToken);
+    }
+
+    public Task<PriceSourceLookup?> GetByIdAsync(PriceSourceLookupId priceSourceLookupId, CancellationToken cancellationToken)
+        => dbContext.PriceSourceLookups.SingleOrDefaultAsync(x => x.Id == priceSourceLookupId, cancellationToken);
+
+    public Task<PriceSourceLookup?> GetByCodeAsync(string code, CancellationToken cancellationToken)
+        => dbContext.PriceSourceLookups.SingleOrDefaultAsync(x => x.Code == code, cancellationToken);
+
+    public async Task AddAsync(PriceSourceLookup priceSourceLookup, CancellationToken cancellationToken)
+        => await dbContext.PriceSourceLookups.AddAsync(priceSourceLookup, cancellationToken);
+
+    public Task UpdateAsync(PriceSourceLookup priceSourceLookup, CancellationToken cancellationToken)
+    {
+        dbContext.PriceSourceLookups.Update(priceSourceLookup);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(PriceSourceLookup priceSourceLookup, CancellationToken cancellationToken)
+    {
+        dbContext.PriceSourceLookups.Remove(priceSourceLookup);
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class CorrectionReasonLookupRepository(SatellitePortfolioDbContext dbContext) : ICorrectionReasonLookupRepository
+{
+    public async Task<IReadOnlyCollection<CorrectionReasonLookup>> ListAsync(
+        string? search,
+        bool? isActive,
+        int skip,
+        int take,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.CorrectionReasonLookups.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalized = search.Trim().ToUpperInvariant();
+            query = query.Where(x => x.Code.Contains(normalized) || x.Name.ToUpper().Contains(normalized));
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == isActive.Value);
+        }
+
+        return await query.OrderBy(x => x.Name).Skip(skip).Take(take).ToListAsync(cancellationToken);
+    }
+
+    public Task<CorrectionReasonLookup?> GetByIdAsync(CorrectionReasonLookupId correctionReasonLookupId, CancellationToken cancellationToken)
+        => dbContext.CorrectionReasonLookups.SingleOrDefaultAsync(x => x.Id == correctionReasonLookupId, cancellationToken);
+
+    public Task<CorrectionReasonLookup?> GetByCodeAsync(string code, CancellationToken cancellationToken)
+        => dbContext.CorrectionReasonLookups.SingleOrDefaultAsync(x => x.Code == code, cancellationToken);
+
+    public async Task AddAsync(CorrectionReasonLookup correctionReasonLookup, CancellationToken cancellationToken)
+        => await dbContext.CorrectionReasonLookups.AddAsync(correctionReasonLookup, cancellationToken);
+
+    public Task UpdateAsync(CorrectionReasonLookup correctionReasonLookup, CancellationToken cancellationToken)
+    {
+        dbContext.CorrectionReasonLookups.Update(correctionReasonLookup);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(CorrectionReasonLookup correctionReasonLookup, CancellationToken cancellationToken)
+    {
+        dbContext.CorrectionReasonLookups.Remove(correctionReasonLookup);
         return Task.CompletedTask;
     }
 }
@@ -209,6 +354,9 @@ public sealed class JournalLinkRepository(SatellitePortfolioDbContext dbContext)
             dbContext.JournalEntryInstrumentLinks.RemoveRange(links);
         }
     }
+
+    public Task<int> CountByInstrumentIdAsync(InstrumentId instrumentId, CancellationToken cancellationToken)
+        => dbContext.JournalEntryInstrumentLinks.CountAsync(x => x.InstrumentId == instrumentId, cancellationToken);
 }
 
 public sealed class PortfolioRuleRepository(SatellitePortfolioDbContext dbContext) : IPortfolioRuleRepository
@@ -266,6 +414,74 @@ public sealed class AlertEventRepository(SatellitePortfolioDbContext dbContext) 
 public sealed class PortfolioUnitOfWork(SatellitePortfolioDbContext dbContext) : IPortfolioUnitOfWork
 {
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
-        => await dbContext.SaveChangesAsync(cancellationToken);
+    {
+        var dateTimeStates = dbContext.ChangeTracker
+            .Entries()
+            .Where(e => e.State is EntityState.Added or EntityState.Modified)
+            .SelectMany(e => e.Properties
+                .Where(p => p.Metadata.ClrType == typeof(DateTime))
+                .Select(p => new
+                {
+                    entity = e.Entity.GetType().Name,
+                    state = e.State.ToString(),
+                    property = p.Metadata.Name,
+                    value = p.CurrentValue is DateTime dt ? dt : default,
+                    kind = p.CurrentValue is DateTime kindDt ? kindDt.Kind.ToString() : "N/A"
+                }))
+            .ToArray();
+
+        #region agent log
+        DebugRuntimeLogger.Log(
+            hypothesisId: "H3",
+            location: "PortfolioUnitOfWork.SaveChangesAsync",
+            message: "DateTime values before EF SaveChanges",
+            data: new { dateTimeStates });
+        #endregion
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            #region agent log
+            DebugRuntimeLogger.Log(
+                hypothesisId: "H4",
+                location: "PortfolioUnitOfWork.SaveChangesAsync",
+                message: "SaveChanges exception during trade persistence",
+                data: new
+                {
+                    exceptionType = ex.GetType().FullName,
+                    ex.Message,
+                    innerExceptionType = ex.InnerException?.GetType().FullName,
+                    innerExceptionMessage = ex.InnerException?.Message,
+                    dateTimeStates
+                });
+            #endregion
+            throw;
+        }
+    }
+}
+
+internal static class DebugRuntimeLogger
+{
+    private const string LogPath = "debug-fbcfbe.log";
+
+    public static void Log(string hypothesisId, string location, string message, object data)
+    {
+        var payload = new
+        {
+            sessionId = "fbcfbe",
+            runId = Guid.NewGuid().ToString("N"),
+            hypothesisId,
+            location,
+            message,
+            data,
+            timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+
+        var line = JsonSerializer.Serialize(payload);
+        File.AppendAllText(LogPath, line + Environment.NewLine);
+    }
 }
 

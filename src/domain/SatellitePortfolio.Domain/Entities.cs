@@ -14,6 +14,7 @@ public sealed class Instrument
     public string Symbol { get; init; } = null!;
     public string? Name { get; init; }
     public string? Sector { get; init; }
+    public SectorLookupId? SectorLookupId { get; init; }
     public string Currency { get; init; } = "EUR";
     public DateTime CreatedAt { get; init; }
 }
@@ -21,7 +22,14 @@ public sealed class Instrument
 public enum TradeSide
 {
     Buy = 1,
-    Sell = 2
+    Sell = 2,
+    NonCashAcquisition = 3
+}
+
+public enum CostBasisMode
+{
+    Zero = 1,
+    Custom = 2
 }
 
 public sealed class Trade
@@ -33,12 +41,15 @@ public sealed class Trade
     public decimal Quantity { get; init; }
     public decimal PriceAmount { get; init; }
     public decimal FeesAmount { get; init; }
+    public CostBasisMode? CostBasisMode { get; init; }
+    public decimal? CustomTotalCost { get; init; }
     public DateTime ExecutedAt { get; init; }
     public string? Notes { get; init; }
     public DateTime CreatedAt { get; init; }
 
     public CorrectionGroupId? CorrectionGroupId { get; init; }
     public TradeId? CorrectedByTradeId { get; init; }
+    public CorrectionReasonLookupId? CorrectionReasonLookupId { get; init; }
     public bool IsCorrectionReversal { get; init; }
 }
 
@@ -64,21 +75,44 @@ public sealed class CashLedgerEntry
     public bool IsCorrectionReversal { get; init; }
 }
 
-public enum PriceSnapshotSource
-{
-    Manual = 1,
-    Import = 2,
-    Other = 3
-}
-
 public sealed class PriceSnapshot
 {
     public PriceSnapshotId Id { get; init; }
     public InstrumentId InstrumentId { get; init; }
     public DateOnly Date { get; init; }
     public decimal ClosePriceAmount { get; init; }
-    public PriceSnapshotSource Source { get; init; }
+    public PriceSourceLookupId PriceSourceLookupId { get; init; }
     public DateTime CreatedAt { get; init; }
+}
+
+public sealed class SectorLookup
+{
+    public SectorLookupId Id { get; init; }
+    public string Code { get; init; } = null!;
+    public string Name { get; init; } = null!;
+    public bool IsActive { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public DateTime UpdatedAt { get; init; }
+}
+
+public sealed class PriceSourceLookup
+{
+    public PriceSourceLookupId Id { get; init; }
+    public string Code { get; init; } = null!;
+    public string Name { get; init; } = null!;
+    public bool IsActive { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public DateTime UpdatedAt { get; init; }
+}
+
+public sealed class CorrectionReasonLookup
+{
+    public CorrectionReasonLookupId Id { get; init; }
+    public string Code { get; init; } = null!;
+    public string Name { get; init; } = null!;
+    public bool IsActive { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public DateTime UpdatedAt { get; init; }
 }
 
 public sealed class JournalEntry

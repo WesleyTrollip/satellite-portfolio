@@ -1,9 +1,10 @@
 using SatellitePortfolio.Domain;
+using System.Text.Json;
 
 namespace SatellitePortfolio.Application;
 
-public sealed record CreateInstrumentRequest(string Symbol, string? Name, string? Sector, string Currency);
-public sealed record UpdateInstrumentRequest(string Symbol, string? Name, string? Sector, string Currency);
+public sealed record CreateInstrumentRequest(string Symbol, string? Name, Guid? SectorLookupId, string Currency);
+public sealed record UpdateInstrumentRequest(string Symbol, string? Name, Guid? SectorLookupId, string Currency);
 
 public sealed record CreateTradeRequest(
     InstrumentId InstrumentId,
@@ -11,6 +12,8 @@ public sealed record CreateTradeRequest(
     decimal Quantity,
     decimal PriceAmount,
     decimal FeesAmount,
+    CostBasisMode? CostBasisMode,
+    decimal? CustomTotalCost,
     DateTime ExecutedAt,
     string? Notes);
 
@@ -18,9 +21,11 @@ public sealed record CreateTradeCorrectionRequest(
     decimal Quantity,
     decimal PriceAmount,
     decimal FeesAmount,
+    CostBasisMode? CostBasisMode,
+    decimal? CustomTotalCost,
     DateTime ExecutedAt,
     string? Notes,
-    string? Reason);
+    Guid? CorrectionReasonLookupId);
 
 public sealed record CreateCashEntryRequest(
     CashEntryType Type,
@@ -37,6 +42,11 @@ public sealed record CreateCashCorrectionRequest(
 
 public sealed class InstrumentService(
     IInstrumentRepository instruments,
+    ISectorLookupRepository sectorLookups,
+    ITradeRepository trades,
+    IPriceSnapshotRepository priceSnapshots,
+    IThesisRepository theses,
+    IJournalLinkRepository journalLinks,
     IPortfolioUnitOfWork unitOfWork)
 {
     private static readonly PortfolioId LocalPortfolioId = new(Guid.Parse("11111111-1111-1111-1111-111111111111"));
@@ -49,13 +59,18 @@ public sealed class InstrumentService(
 
     public async Task<Instrument> CreateAsync(CreateInstrumentRequest request, CancellationToken cancellationToken)
     {
+        var sector = await ResolveSectorLookupAsync(
+            request.SectorLookupId.HasValue ? new SectorLookupId(request.SectorLookupId.Value) : null,
+            cancellationToken);
+
         var instrument = new Instrument
         {
             Id = new InstrumentId(Guid.NewGuid()),
             PortfolioId = LocalPortfolioId,
             Symbol = request.Symbol.Trim().ToUpperInvariant(),
             Name = request.Name?.Trim(),
-            Sector = request.Sector?.Trim(),
+            Sector = sector?.Name,
+            SectorLookupId = request.SectorLookupId.HasValue ? new SectorLookupId(request.SectorLookupId.Value) : null,
             Currency = string.IsNullOrWhiteSpace(request.Currency) ? "EUR" : request.Currency.Trim().ToUpperInvariant(),
             CreatedAt = DateTime.UtcNow
         };
@@ -73,13 +88,18 @@ public sealed class InstrumentService(
             return null;
         }
 
+        var sector = await ResolveSectorLookupAsync(
+            request.SectorLookupId.HasValue ? new SectorLookupId(request.SectorLookupId.Value) : null,
+            cancellationToken);
+
         var updated = new Instrument
         {
             Id = existing.Id,
             PortfolioId = existing.PortfolioId,
             Symbol = request.Symbol.Trim().ToUpperInvariant(),
             Name = request.Name?.Trim(),
-            Sector = request.Sector?.Trim(),
+            Sector = sector?.Name,
+            SectorLookupId = request.SectorLookupId.HasValue ? new SectorLookupId(request.SectorLookupId.Value) : null,
             Currency = string.IsNullOrWhiteSpace(request.Currency) ? "EUR" : request.Currency.Trim().ToUpperInvariant(),
             CreatedAt = existing.CreatedAt
         };
@@ -88,12 +108,62 @@ public sealed class InstrumentService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return updated;
     }
+
+    public async Task<bool> DeleteAsync(InstrumentId instrumentId, CancellationToken cancellationToken)
+    {
+        var existing = await instruments.GetByIdAsync(instrumentId, cancellationToken);
+        if (existing is null)
+        {
+            return false;
+        }
+
+        if ((await trades.ListAllAsync(cancellationToken)).Any(x => x.InstrumentId == instrumentId))
+        {
+            throw new InvalidOperationException("Cannot delete instrument because it is referenced by trades.");
+        }
+
+        if ((await priceSnapshots.ListAllAsync(cancellationToken)).Any(x => x.InstrumentId == instrumentId))
+        {
+            throw new InvalidOperationException("Cannot delete instrument because it is referenced by price snapshots.");
+        }
+
+        if ((await theses.ListAsync(cancellationToken)).Any(x => x.InstrumentId == instrumentId))
+        {
+            throw new InvalidOperationException("Cannot delete instrument because it is referenced by theses.");
+        }
+
+        if (await journalLinks.CountByInstrumentIdAsync(instrumentId, cancellationToken) > 0)
+        {
+            throw new InvalidOperationException("Cannot delete instrument because it is referenced by journal entries.");
+        }
+
+        await instruments.DeleteAsync(existing, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    private async Task<SectorLookup?> ResolveSectorLookupAsync(SectorLookupId? sectorLookupId, CancellationToken cancellationToken)
+    {
+        if (!sectorLookupId.HasValue)
+        {
+            return null;
+        }
+
+        var sector = await sectorLookups.GetByIdAsync(sectorLookupId.Value, cancellationToken);
+        if (sector is null || !sector.IsActive)
+        {
+            throw new InvalidOperationException($"Sector '{sectorLookupId.Value.Value}' is invalid or inactive.");
+        }
+
+        return sector;
+    }
 }
 
 public sealed class TradeService(
     ITradeRepository trades,
     ICashLedgerRepository cashEntries,
     IPriceSnapshotRepository prices,
+    ICorrectionReasonLookupRepository correctionReasons,
     IPortfolioUnitOfWork unitOfWork,
     IHoldingsCalculator holdingsCalculator)
 {
@@ -107,8 +177,35 @@ public sealed class TradeService(
 
     public async Task<Trade> CreateAsync(CreateTradeRequest request, CancellationToken cancellationToken)
     {
-        ValidateTradeRequest(request.Quantity, request.PriceAmount, request.FeesAmount);
-        await EnsureSellDoesNotExceedHoldings(request, cancellationToken);
+        #region agent log
+        DebugRuntimeLogger.Log(
+            hypothesisId: "H2",
+            location: "TradeService.CreateAsync",
+            message: "Trade service received datetime",
+            data: new
+            {
+                executedAt = request.ExecutedAt,
+                executedAtKind = request.ExecutedAt.Kind.ToString(),
+                instrumentId = request.InstrumentId.Value,
+                side = request.Side.ToString()
+            });
+        #endregion
+
+        var normalizedBasis = NormalizeCostBasis(request.Side, request.CostBasisMode, request.CustomTotalCost);
+        ValidateTradeRequest(request.Side, request.Quantity, request.PriceAmount, request.FeesAmount);
+        var executedAtUtc = NormalizeToUtc(request.ExecutedAt);
+        await EnsureSellDoesNotExceedHoldings(
+            new CreateTradeRequest(
+                request.InstrumentId,
+                request.Side,
+                request.Quantity,
+                request.PriceAmount,
+                request.FeesAmount,
+                normalizedBasis.Mode,
+                normalizedBasis.CustomTotalCost,
+                executedAtUtc,
+                request.Notes),
+            cancellationToken);
 
         var trade = new Trade
         {
@@ -119,7 +216,9 @@ public sealed class TradeService(
             Quantity = request.Quantity,
             PriceAmount = request.PriceAmount,
             FeesAmount = request.FeesAmount,
-            ExecutedAt = request.ExecutedAt,
+            CostBasisMode = normalizedBasis.Mode,
+            CustomTotalCost = normalizedBasis.CustomTotalCost,
+            ExecutedAt = executedAtUtc,
             Notes = request.Notes?.Trim(),
             CreatedAt = DateTime.UtcNow
         };
@@ -134,10 +233,12 @@ public sealed class TradeService(
         CreateTradeCorrectionRequest request,
         CancellationToken cancellationToken)
     {
-        ValidateTradeRequest(request.Quantity, request.PriceAmount, request.FeesAmount);
+        var executedAtUtc = NormalizeToUtc(request.ExecutedAt);
 
         var original = await trades.GetByIdAsync(tradeId, cancellationToken)
                        ?? throw new InvalidOperationException($"Trade '{tradeId.Value}' was not found.");
+        var normalizedBasis = NormalizeCostBasis(original.Side, request.CostBasisMode, request.CustomTotalCost);
+        ValidateTradeRequest(original.Side, request.Quantity, request.PriceAmount, request.FeesAmount);
 
         var replacementDraft = new Trade
         {
@@ -148,10 +249,17 @@ public sealed class TradeService(
             Quantity = request.Quantity,
             PriceAmount = request.PriceAmount,
             FeesAmount = request.FeesAmount,
-            ExecutedAt = request.ExecutedAt,
-            Notes = BuildCorrectionNotes(request.Notes, request.Reason),
+            CostBasisMode = normalizedBasis.Mode,
+            CustomTotalCost = normalizedBasis.CustomTotalCost,
+            ExecutedAt = executedAtUtc,
+            Notes = request.Notes?.Trim(),
+            CorrectionReasonLookupId = request.CorrectionReasonLookupId.HasValue
+                ? new CorrectionReasonLookupId(request.CorrectionReasonLookupId.Value)
+                : null,
             CreatedAt = DateTime.UtcNow
         };
+
+        await ValidateCorrectionReasonAsync(replacementDraft.CorrectionReasonLookupId, cancellationToken);
 
         await EnsureSellDoesNotExceedHoldings(
             new CreateTradeRequest(
@@ -160,6 +268,8 @@ public sealed class TradeService(
                 replacementDraft.Quantity,
                 replacementDraft.PriceAmount,
                 replacementDraft.FeesAmount,
+                replacementDraft.CostBasisMode,
+                replacementDraft.CustomTotalCost,
                 replacementDraft.ExecutedAt,
                 replacementDraft.Notes),
             cancellationToken);
@@ -192,7 +302,7 @@ public sealed class TradeService(
         }
     }
 
-    private static void ValidateTradeRequest(decimal quantity, decimal priceAmount, decimal feesAmount)
+    private static void ValidateTradeRequest(TradeSide side, decimal quantity, decimal priceAmount, decimal feesAmount)
     {
         if (quantity <= 0m)
         {
@@ -208,21 +318,68 @@ public sealed class TradeService(
         {
             throw new InvalidOperationException("Fees cannot be negative.");
         }
+
+        if (side == TradeSide.NonCashAcquisition && feesAmount != 0m)
+        {
+            throw new InvalidOperationException("Fees must be zero for non-cash acquisitions.");
+        }
     }
 
-    private static string? BuildCorrectionNotes(string? notes, string? reason)
+    private static DateTime NormalizeToUtc(DateTime value)
+        => value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+            _ => value
+        };
+
+    private static (CostBasisMode? Mode, decimal? CustomTotalCost) NormalizeCostBasis(
+        TradeSide side,
+        CostBasisMode? costBasisMode,
+        decimal? customTotalCost)
     {
-        if (string.IsNullOrWhiteSpace(reason))
+        if (side != TradeSide.NonCashAcquisition)
         {
-            return notes;
+            if (costBasisMode.HasValue || customTotalCost.HasValue)
+            {
+                throw new InvalidOperationException("Cost basis fields are only supported for non-cash acquisitions.");
+            }
+
+            return (null, null);
         }
 
-        if (string.IsNullOrWhiteSpace(notes))
+        var mode = costBasisMode ?? CostBasisMode.Zero;
+        if (mode == CostBasisMode.Zero)
         {
-            return $"Correction reason: {reason}";
+            return (CostBasisMode.Zero, null);
         }
 
-        return $"{notes} | Correction reason: {reason}";
+        if (!customTotalCost.HasValue)
+        {
+            throw new InvalidOperationException("Custom total cost is required when cost basis mode is Custom.");
+        }
+
+        if (customTotalCost.Value < 0m)
+        {
+            throw new InvalidOperationException("Custom total cost cannot be negative.");
+        }
+
+        return (CostBasisMode.Custom, customTotalCost.Value);
+    }
+
+    private async Task ValidateCorrectionReasonAsync(CorrectionReasonLookupId? correctionReasonLookupId, CancellationToken cancellationToken)
+    {
+        if (!correctionReasonLookupId.HasValue)
+        {
+            return;
+        }
+
+        var reason = await correctionReasons.GetByIdAsync(correctionReasonLookupId.Value, cancellationToken);
+        if (reason is null || !reason.IsActive)
+        {
+            throw new InvalidOperationException($"Correction reason '{correctionReasonLookupId.Value.Value}' is invalid or inactive.");
+        }
     }
 }
 
@@ -305,6 +462,28 @@ public sealed class CashLedgerService(
         }
 
         return $"{notes} | Correction reason: {reason}";
+    }
+}
+
+internal static class DebugRuntimeLogger
+{
+    private const string LogPath = "debug-fbcfbe.log";
+
+    public static void Log(string hypothesisId, string location, string message, object data)
+    {
+        var payload = new
+        {
+            sessionId = "fbcfbe",
+            runId = Guid.NewGuid().ToString("N"),
+            hypothesisId,
+            location,
+            message,
+            data,
+            timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+
+        var line = JsonSerializer.Serialize(payload);
+        File.AppendAllText(LogPath, line + Environment.NewLine);
     }
 }
 

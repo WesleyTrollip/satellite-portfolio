@@ -15,7 +15,7 @@ public class TradeAndCashServicesTests
         var unitOfWork = new InMemoryUnitOfWork();
         var calculator = new HoldingsCalculator();
 
-        var tradeService = new TradeService(trades, cash, prices, unitOfWork, calculator);
+        var tradeService = new TradeService(trades, cash, prices, new InMemoryCorrectionReasonLookupRepository(), unitOfWork, calculator);
         var cashService = new CashLedgerService(cash, unitOfWork);
 
         var entry = await cashService.CreateAsync(
@@ -23,7 +23,7 @@ public class TradeAndCashServicesTests
             CancellationToken.None);
 
         var trade = await tradeService.CreateAsync(
-            new CreateTradeRequest(instrumentId, TradeSide.Buy, 10m, 100m, 5m, DateTime.UtcNow, "buy"),
+            new CreateTradeRequest(instrumentId, TradeSide.Buy, 10m, 100m, 5m, null, null, DateTime.UtcNow, "buy"),
             CancellationToken.None);
 
         Assert.Single(cash.Items);
@@ -41,15 +41,15 @@ public class TradeAndCashServicesTests
         var prices = new InMemoryPriceSnapshotRepository();
         var unitOfWork = new InMemoryUnitOfWork();
         var calculator = new HoldingsCalculator();
-        var tradeService = new TradeService(trades, cash, prices, unitOfWork, calculator);
+        var tradeService = new TradeService(trades, cash, prices, new InMemoryCorrectionReasonLookupRepository(), unitOfWork, calculator);
 
         var original = await tradeService.CreateAsync(
-            new CreateTradeRequest(instrumentId, TradeSide.Buy, 5m, 100m, 1m, DateTime.UtcNow, "original"),
+            new CreateTradeRequest(instrumentId, TradeSide.Buy, 5m, 100m, 1m, null, null, DateTime.UtcNow, "original"),
             CancellationToken.None);
 
         var corrected = await tradeService.CorrectAsync(
             original.Id,
-            new CreateTradeCorrectionRequest(5m, 95m, 1m, DateTime.UtcNow, "replacement", "wrong price"),
+            new CreateTradeCorrectionRequest(5m, 95m, 1m, null, null, DateTime.UtcNow, "replacement", null),
             CancellationToken.None);
 
         Assert.Equal(3, trades.Items.Count);
@@ -67,11 +67,11 @@ public class TradeAndCashServicesTests
         var prices = new InMemoryPriceSnapshotRepository();
         var unitOfWork = new InMemoryUnitOfWork();
         var calculator = new HoldingsCalculator();
-        var tradeService = new TradeService(trades, cash, prices, unitOfWork, calculator);
+        var tradeService = new TradeService(trades, cash, prices, new InMemoryCorrectionReasonLookupRepository(), unitOfWork, calculator);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             tradeService.CreateAsync(
-                new CreateTradeRequest(instrumentId, TradeSide.Sell, 1m, 100m, 0m, DateTime.UtcNow, "invalid"),
+                new CreateTradeRequest(instrumentId, TradeSide.Sell, 1m, 100m, 0m, null, null, DateTime.UtcNow, "invalid"),
                 CancellationToken.None));
     }
 
@@ -84,21 +84,78 @@ public class TradeAndCashServicesTests
         var prices = new InMemoryPriceSnapshotRepository();
         var unitOfWork = new InMemoryUnitOfWork();
         var calculator = new HoldingsCalculator();
-        var tradeService = new TradeService(trades, cash, prices, unitOfWork, calculator);
+        var tradeService = new TradeService(trades, cash, prices, new InMemoryCorrectionReasonLookupRepository(), unitOfWork, calculator);
 
         var original = await tradeService.CreateAsync(
-            new CreateTradeRequest(instrumentId, TradeSide.Buy, 2m, 100m, 0m, DateTime.UtcNow.AddMinutes(-2), "original"),
+            new CreateTradeRequest(instrumentId, TradeSide.Buy, 2m, 100m, 0m, null, null, DateTime.UtcNow.AddMinutes(-2), "original"),
             CancellationToken.None);
 
         await tradeService.CorrectAsync(
             original.Id,
-            new CreateTradeCorrectionRequest(2m, 101m, 0m, DateTime.UtcNow.AddMinutes(-1), "replacement", "price typo"),
+            new CreateTradeCorrectionRequest(2m, 101m, 0m, null, null, DateTime.UtcNow.AddMinutes(-1), "replacement", null),
             CancellationToken.None);
 
         var history = await tradeService.ListAsync(null, null, null, CancellationToken.None);
         Assert.Equal(3, history.Count);
         Assert.Contains(history, x => x.Id == original.Id);
         Assert.Equal(2, history.Count(x => x.CorrectionGroupId.HasValue));
+    }
+
+    [Fact]
+    public async Task CreateNonCashAcquisition_WithZeroBasis_DoesNotChangeCashBalance()
+    {
+        var instrumentId = new InstrumentId(Guid.NewGuid());
+        var trades = new InMemoryTradeRepository();
+        var cash = new InMemoryCashLedgerRepository();
+        var prices = new InMemoryPriceSnapshotRepository();
+        var unitOfWork = new InMemoryUnitOfWork();
+        var calculator = new HoldingsCalculator();
+        var tradeService = new TradeService(trades, cash, prices, new InMemoryCorrectionReasonLookupRepository(), unitOfWork, calculator);
+
+        await tradeService.CreateAsync(
+            new CreateTradeRequest(instrumentId, TradeSide.NonCashAcquisition, 10m, 0m, 0m, CostBasisMode.Zero, null, DateTime.UtcNow, "gifted"),
+            CancellationToken.None);
+
+        var snapshot = calculator.CalculateSnapshot(trades.Items, cash.Items, prices.Items, DateTime.UtcNow.AddMinutes(1));
+        var holding = Assert.Single(snapshot.Holdings);
+        Assert.Equal(10m, holding.Quantity);
+        Assert.Equal(0m, snapshot.Totals.CashBalance.Amount);
+    }
+
+    [Fact]
+    public async Task CreateNonCashAcquisition_WithCustomBasis_PersistsBasisFields()
+    {
+        var instrumentId = new InstrumentId(Guid.NewGuid());
+        var trades = new InMemoryTradeRepository();
+        var cash = new InMemoryCashLedgerRepository();
+        var prices = new InMemoryPriceSnapshotRepository();
+        var unitOfWork = new InMemoryUnitOfWork();
+        var calculator = new HoldingsCalculator();
+        var tradeService = new TradeService(trades, cash, prices, new InMemoryCorrectionReasonLookupRepository(), unitOfWork, calculator);
+
+        var created = await tradeService.CreateAsync(
+            new CreateTradeRequest(instrumentId, TradeSide.NonCashAcquisition, 10m, 0m, 0m, CostBasisMode.Custom, 120m, DateTime.UtcNow, "grant"),
+            CancellationToken.None);
+
+        Assert.Equal(CostBasisMode.Custom, created.CostBasisMode);
+        Assert.Equal(120m, created.CustomTotalCost);
+    }
+
+    [Fact]
+    public async Task CustomCostBasis_OnStandardBuy_IsRejected()
+    {
+        var instrumentId = new InstrumentId(Guid.NewGuid());
+        var trades = new InMemoryTradeRepository();
+        var cash = new InMemoryCashLedgerRepository();
+        var prices = new InMemoryPriceSnapshotRepository();
+        var unitOfWork = new InMemoryUnitOfWork();
+        var calculator = new HoldingsCalculator();
+        var tradeService = new TradeService(trades, cash, prices, new InMemoryCorrectionReasonLookupRepository(), unitOfWork, calculator);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            tradeService.CreateAsync(
+                new CreateTradeRequest(instrumentId, TradeSide.Buy, 1m, 100m, 0m, CostBasisMode.Custom, 100m, DateTime.UtcNow, "invalid"),
+                CancellationToken.None));
     }
 }
 
@@ -218,6 +275,159 @@ internal sealed class InMemoryAlertEventRepository : IAlertEventRepository
     public Task AddRangeAsync(IEnumerable<AlertEvent> alertEvents, CancellationToken cancellationToken)
     {
         Items.AddRange(alertEvents);
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class InMemorySectorLookupRepository : ISectorLookupRepository
+{
+    public List<SectorLookup> Items { get; } = [];
+
+    public Task<IReadOnlyCollection<SectorLookup>> ListAsync(string? search, bool? isActive, int skip, int take, CancellationToken cancellationToken)
+    {
+        IEnumerable<SectorLookup> query = Items;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalized = search.Trim().ToUpperInvariant();
+            query = query.Where(x => x.Code.Contains(normalized, StringComparison.OrdinalIgnoreCase) || x.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == isActive.Value);
+        }
+
+        return Task.FromResult<IReadOnlyCollection<SectorLookup>>(query.Skip(skip).Take(take).ToList());
+    }
+
+    public Task<SectorLookup?> GetByIdAsync(SectorLookupId sectorLookupId, CancellationToken cancellationToken)
+        => Task.FromResult(Items.SingleOrDefault(x => x.Id == sectorLookupId));
+
+    public Task<SectorLookup?> GetByCodeAsync(string code, CancellationToken cancellationToken)
+        => Task.FromResult(Items.SingleOrDefault(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase)));
+
+    public Task AddAsync(SectorLookup sectorLookup, CancellationToken cancellationToken)
+    {
+        Items.Add(sectorLookup);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(SectorLookup sectorLookup, CancellationToken cancellationToken)
+    {
+        var index = Items.FindIndex(x => x.Id == sectorLookup.Id);
+        if (index >= 0)
+        {
+            Items[index] = sectorLookup;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(SectorLookup sectorLookup, CancellationToken cancellationToken)
+    {
+        Items.RemoveAll(x => x.Id == sectorLookup.Id);
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class InMemoryPriceSourceLookupRepository : IPriceSourceLookupRepository
+{
+    public List<PriceSourceLookup> Items { get; } = [];
+
+    public Task<IReadOnlyCollection<PriceSourceLookup>> ListAsync(string? search, bool? isActive, int skip, int take, CancellationToken cancellationToken)
+    {
+        IEnumerable<PriceSourceLookup> query = Items;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalized = search.Trim().ToUpperInvariant();
+            query = query.Where(x => x.Code.Contains(normalized, StringComparison.OrdinalIgnoreCase) || x.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == isActive.Value);
+        }
+
+        return Task.FromResult<IReadOnlyCollection<PriceSourceLookup>>(query.Skip(skip).Take(take).ToList());
+    }
+
+    public Task<PriceSourceLookup?> GetByIdAsync(PriceSourceLookupId priceSourceLookupId, CancellationToken cancellationToken)
+        => Task.FromResult(Items.SingleOrDefault(x => x.Id == priceSourceLookupId));
+
+    public Task<PriceSourceLookup?> GetByCodeAsync(string code, CancellationToken cancellationToken)
+        => Task.FromResult(Items.SingleOrDefault(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase)));
+
+    public Task AddAsync(PriceSourceLookup priceSourceLookup, CancellationToken cancellationToken)
+    {
+        Items.Add(priceSourceLookup);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(PriceSourceLookup priceSourceLookup, CancellationToken cancellationToken)
+    {
+        var index = Items.FindIndex(x => x.Id == priceSourceLookup.Id);
+        if (index >= 0)
+        {
+            Items[index] = priceSourceLookup;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(PriceSourceLookup priceSourceLookup, CancellationToken cancellationToken)
+    {
+        Items.RemoveAll(x => x.Id == priceSourceLookup.Id);
+        return Task.CompletedTask;
+    }
+}
+
+internal sealed class InMemoryCorrectionReasonLookupRepository : ICorrectionReasonLookupRepository
+{
+    public List<CorrectionReasonLookup> Items { get; } = [];
+
+    public Task<IReadOnlyCollection<CorrectionReasonLookup>> ListAsync(string? search, bool? isActive, int skip, int take, CancellationToken cancellationToken)
+    {
+        IEnumerable<CorrectionReasonLookup> query = Items;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalized = search.Trim().ToUpperInvariant();
+            query = query.Where(x => x.Code.Contains(normalized, StringComparison.OrdinalIgnoreCase) || x.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == isActive.Value);
+        }
+
+        return Task.FromResult<IReadOnlyCollection<CorrectionReasonLookup>>(query.Skip(skip).Take(take).ToList());
+    }
+
+    public Task<CorrectionReasonLookup?> GetByIdAsync(CorrectionReasonLookupId correctionReasonLookupId, CancellationToken cancellationToken)
+        => Task.FromResult(Items.SingleOrDefault(x => x.Id == correctionReasonLookupId));
+
+    public Task<CorrectionReasonLookup?> GetByCodeAsync(string code, CancellationToken cancellationToken)
+        => Task.FromResult(Items.SingleOrDefault(x => string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase)));
+
+    public Task AddAsync(CorrectionReasonLookup correctionReasonLookup, CancellationToken cancellationToken)
+    {
+        Items.Add(correctionReasonLookup);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateAsync(CorrectionReasonLookup correctionReasonLookup, CancellationToken cancellationToken)
+    {
+        var index = Items.FindIndex(x => x.Id == correctionReasonLookup.Id);
+        if (index >= 0)
+        {
+            Items[index] = correctionReasonLookup;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteAsync(CorrectionReasonLookup correctionReasonLookup, CancellationToken cancellationToken)
+    {
+        Items.RemoveAll(x => x.Id == correctionReasonLookup.Id);
         return Task.CompletedTask;
     }
 }

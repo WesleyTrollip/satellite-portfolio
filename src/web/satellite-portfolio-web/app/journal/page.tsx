@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { getJournalEntries, getTheses, JournalEntryView, ThesisView } from "../../lib/api";
+import { getInstruments, getJournalEntries, getTheses, InstrumentView, JournalEntryView, ThesisView } from "../../lib/api";
 import { CardSection, EmptyState, FieldLabel, PageHeader, StatusMessage } from "../components/ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5014/api";
@@ -9,8 +9,19 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5
 export default function JournalPage() {
   const [entries, setEntries] = useState<JournalEntryView[]>([]);
   const [theses, setTheses] = useState<ThesisView[]>([]);
-  const [selectedJournalId, setSelectedJournalId] = useState<string>("");
-  const [selectedThesisId, setSelectedThesisId] = useState<string>("");
+  const [instruments, setInstruments] = useState<InstrumentView[]>([]);
+  const [selectedThesisIdForCreate, setSelectedThesisIdForCreate] = useState<string>("");
+  const [selectedInstrumentIdForCreate, setSelectedInstrumentIdForCreate] = useState<string>("");
+  const [selectedThesisInstrumentId, setSelectedThesisInstrumentId] = useState<string>("");
+  const [editingEntry, setEditingEntry] = useState<JournalEntryView | null>(null);
+  const [editingOccurredAt, setEditingOccurredAt] = useState("");
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingBody, setEditingBody] = useState("");
+  const [editingTags, setEditingTags] = useState("");
+  const [editingThesisId, setEditingThesisId] = useState<string>("");
+  const [editingInstrumentId, setEditingInstrumentId] = useState<string>("");
+  const [lookupsLoading, setLookupsLoading] = useState(true);
+  const [lookupError, setLookupError] = useState("");
   const [status, setStatus] = useState<string>("");
 
   const thesisOptions = useMemo(
@@ -22,15 +33,44 @@ export default function JournalPage() {
     [theses]
   );
 
+  const thesisLabelMap = useMemo(
+    () => Object.fromEntries(thesisOptions.map((option) => [option.id, option.label])),
+    [thesisOptions]
+  );
+
   const refresh = async () => {
-    const [entryData, thesisData] = await Promise.all([getJournalEntries(), getTheses()]);
+    const [entryData, thesisData, instrumentData] = await Promise.all([getJournalEntries(), getTheses(), getInstruments()]);
     setEntries(entryData);
     setTheses(thesisData);
+    setInstruments(instrumentData);
   };
 
   useEffect(() => {
-    refresh().catch(() => setStatus("Failed to load journal/thesis data."));
+    refresh()
+      .then(() => setLookupError(""))
+      .catch(() => {
+        setStatus("Failed to load journal/thesis data.");
+        setLookupError("Lookup data is unavailable.");
+      })
+      .finally(() => setLookupsLoading(false));
   }, []);
+
+  const instrumentOptions = useMemo(
+    () =>
+      instruments.map((instrument) => {
+        const id = typeof instrument.id === "string" ? instrument.id : instrument.id.value;
+        return {
+          id,
+          label: instrument.name ? `${instrument.symbol} - ${instrument.name}` : instrument.symbol
+        };
+      }),
+    [instruments]
+  );
+
+  const instrumentLabelMap = useMemo(
+    () => Object.fromEntries(instrumentOptions.map((option) => [option.id, option.label])),
+    [instrumentOptions]
+  );
 
   const createJournal = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -40,8 +80,8 @@ export default function JournalPage() {
       title: form.get("title"),
       body: form.get("body"),
       tags: form.get("tags"),
-      thesisIds: selectedThesisId ? [selectedThesisId] : [],
-      instrumentIds: []
+      thesisIds: selectedThesisIdForCreate ? [selectedThesisIdForCreate] : [],
+      instrumentIds: selectedInstrumentIdForCreate ? [selectedInstrumentIdForCreate] : []
     };
 
     const response = await fetch(`${API_BASE_URL}/journal`, {
@@ -58,22 +98,22 @@ export default function JournalPage() {
 
   const updateJournal = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedJournalId) {
-      setStatus("Select a journal entry first.");
+    if (!editingEntry) {
+      setStatus("Select a journal entry row first.");
       return;
     }
 
-    const form = new FormData(event.currentTarget);
     const payload = {
-      occurredAt: form.get("occurredAt"),
-      title: form.get("title"),
-      body: form.get("body"),
-      tags: form.get("tags"),
-      thesisIds: selectedThesisId ? [selectedThesisId] : [],
-      instrumentIds: []
+      occurredAt: editingOccurredAt,
+      title: editingTitle,
+      body: editingBody,
+      tags: editingTags,
+      thesisIds: editingThesisId ? [editingThesisId] : [],
+      instrumentIds: editingInstrumentId ? [editingInstrumentId] : []
     };
 
-    const response = await fetch(`${API_BASE_URL}/journal/${selectedJournalId}`, {
+    const editingId = typeof editingEntry.entry.id === "string" ? editingEntry.entry.id : editingEntry.entry.id.value;
+    const response = await fetch(`${API_BASE_URL}/journal/${editingId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -81,6 +121,7 @@ export default function JournalPage() {
 
     setStatus(response.ok ? "Journal entry updated." : "Journal entry update failed.");
     if (response.ok) {
+      cancelEdit();
       await refresh();
     }
   };
@@ -92,7 +133,7 @@ export default function JournalPage() {
       title: form.get("title"),
       body: form.get("body"),
       status: form.get("status"),
-      instrumentId: form.get("instrumentId") || null
+      instrumentId: selectedThesisInstrumentId || null
     };
 
     const response = await fetch(`${API_BASE_URL}/theses`, {
@@ -105,6 +146,26 @@ export default function JournalPage() {
     if (response.ok) {
       await refresh();
     }
+  };
+
+  const startEdit = (entry: JournalEntryView) => {
+    setEditingEntry(entry);
+    setEditingOccurredAt(entry.entry.occurredAt.slice(0, 16));
+    setEditingTitle(entry.entry.title);
+    setEditingBody(entry.entry.body);
+    setEditingTags(entry.entry.tags ?? "");
+    setEditingThesisId(entry.thesisIds[0] ?? "");
+    setEditingInstrumentId(entry.instrumentIds[0] ?? "");
+  };
+
+  const cancelEdit = () => {
+    setEditingEntry(null);
+    setEditingOccurredAt("");
+    setEditingTitle("");
+    setEditingBody("");
+    setEditingTags("");
+    setEditingThesisId("");
+    setEditingInstrumentId("");
   };
 
   return (
@@ -145,10 +206,23 @@ export default function JournalPage() {
             <div>
               <FieldLabel
                 htmlFor="thesis-instrument-id"
-                label="Instrument ID (optional)"
-                tooltip="Optional GUID to tie this thesis to one instrument. Example: 3f8f0d76-1b4a-4cde-9a37-0b9e9d2f4c12"
+                label="Instrument (optional)"
+                tooltip="Optionally link this thesis to one instrument."
               />
-              <input id="thesis-instrument-id" name="instrumentId" className="input" />
+              <select
+                id="thesis-instrument-id"
+                name="instrumentId"
+                className="input"
+                value={selectedThesisInstrumentId}
+                onChange={(e) => setSelectedThesisInstrumentId(e.target.value)}
+              >
+                <option value="">None</option>
+                {instrumentOptions.map((instrument) => (
+                  <option key={instrument.id} value={instrument.id}>
+                    {instrument.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <button type="submit" className="btn-primary">
@@ -201,13 +275,33 @@ export default function JournalPage() {
               <select
                 id="journal-create-thesis"
                 className="input"
-                value={selectedThesisId}
-                onChange={(e) => setSelectedThesisId(e.target.value)}
+                value={selectedThesisIdForCreate}
+                onChange={(e) => setSelectedThesisIdForCreate(e.target.value)}
               >
                 <option value="">None</option>
                 {thesisOptions.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <FieldLabel
+                htmlFor="journal-create-instrument"
+                label="Linked Instrument"
+                tooltip="Optional instrument link for this journal entry."
+              />
+              <select
+                id="journal-create-instrument"
+                className="input"
+                value={selectedInstrumentIdForCreate}
+                onChange={(e) => setSelectedInstrumentIdForCreate(e.target.value)}
+              >
+                <option value="">None</option>
+                {instrumentOptions.map((instrument) => (
+                  <option key={instrument.id} value={instrument.id}>
+                    {instrument.label}
                   </option>
                 ))}
               </select>
@@ -226,14 +320,20 @@ export default function JournalPage() {
           <div>
             <FieldLabel
               htmlFor="journal-update-id"
-              label="Journal Entry ID"
-              tooltip="GUID of the existing journal entry to update. Example: 21c6dc90-e0fd-4c3f-b6a7-e0af4b4f7a8a"
+              label="Selected Journal Entry"
+              tooltip="Use Edit on a table row to preload this update form."
             />
             <input
               id="journal-update-id"
               className="input"
-              value={selectedJournalId}
-              onChange={(e) => setSelectedJournalId(e.target.value)}
+              value={
+                editingEntry
+                  ? typeof editingEntry.entry.id === "string"
+                    ? editingEntry.entry.id
+                    : editingEntry.entry.id.value
+                  : ""
+              }
+              readOnly
             />
           </div>
           <div>
@@ -242,7 +342,15 @@ export default function JournalPage() {
               label="Occurred At"
               tooltip="Updated timestamp for when the event occurred. Example: 2026-03-21T09:45"
             />
-            <input id="journal-update-occurred-at" name="occurredAt" type="datetime-local" className="input" required />
+            <input
+              id="journal-update-occurred-at"
+              name="occurredAt"
+              type="datetime-local"
+              className="input"
+              value={editingOccurredAt}
+              onChange={(e) => setEditingOccurredAt(e.target.value)}
+              required
+            />
           </div>
           <div>
             <FieldLabel
@@ -250,7 +358,14 @@ export default function JournalPage() {
               label="Title"
               tooltip="Updated short heading for this entry. Example: Rebalance after CPI release"
             />
-            <input id="journal-update-title" name="title" className="input" required />
+            <input
+              id="journal-update-title"
+              name="title"
+              className="input"
+              value={editingTitle}
+              onChange={(e) => setEditingTitle(e.target.value)}
+              required
+            />
           </div>
           <div>
             <FieldLabel
@@ -258,7 +373,13 @@ export default function JournalPage() {
               label="Tags"
               tooltip="Updated optional comma-separated labels. Example: macro,risk,rebalance"
             />
-            <input id="journal-update-tags" name="tags" className="input" />
+            <input
+              id="journal-update-tags"
+              name="tags"
+              className="input"
+              value={editingTags}
+              onChange={(e) => setEditingTags(e.target.value)}
+            />
           </div>
           <div className="md:col-span-2">
             <FieldLabel
@@ -266,15 +387,63 @@ export default function JournalPage() {
               label="Body"
               tooltip="Updated full journal note content. Example: Position sizing adjusted to stay within risk limits..."
             />
-            <textarea id="journal-update-body" name="body" className="input min-h-28" required />
+            <textarea
+              id="journal-update-body"
+              name="body"
+              className="input min-h-28"
+              value={editingBody}
+              onChange={(e) => setEditingBody(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <FieldLabel htmlFor="journal-update-thesis" label="Linked Thesis" tooltip="Optional thesis link for this entry." />
+            <select
+              id="journal-update-thesis"
+              className="input"
+              value={editingThesisId}
+              onChange={(e) => setEditingThesisId(e.target.value)}
+            >
+              <option value="">None</option>
+              {thesisOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <FieldLabel
+              htmlFor="journal-update-instrument"
+              label="Linked Instrument"
+              tooltip="Optional instrument link for this entry."
+            />
+            <select
+              id="journal-update-instrument"
+              className="input"
+              value={editingInstrumentId}
+              onChange={(e) => setEditingInstrumentId(e.target.value)}
+            >
+              <option value="">None</option>
+              {instrumentOptions.map((instrument) => (
+                <option key={instrument.id} value={instrument.id}>
+                  {instrument.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="md:col-span-2">
             <button type="submit" className="btn-primary">
               Update Journal Entry
             </button>
+            <button type="button" className="btn-secondary ml-2" onClick={cancelEdit}>
+              Cancel
+            </button>
           </div>
         </form>
       </CardSection>
+      {lookupsLoading ? <p className="muted">Loading lookup data...</p> : null}
+      {lookupError ? <p className="muted">{lookupError}</p> : null}
 
       <CardSection title="Journal Entries">
         {entries.length === 0 ? (
@@ -289,6 +458,8 @@ export default function JournalPage() {
                   <th scope="col">Title</th>
                   <th scope="col">Tags</th>
                   <th scope="col">Linked Theses</th>
+                  <th scope="col">Linked Instruments</th>
+                  <th scope="col">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -300,7 +471,13 @@ export default function JournalPage() {
                       <td>{new Date(entry.entry.occurredAt).toLocaleString()}</td>
                       <td>{entry.entry.title}</td>
                       <td>{entry.entry.tags || "-"}</td>
-                      <td>{entry.thesisIds.join(", ") || "-"}</td>
+                      <td>{entry.thesisIds.map((id) => thesisLabelMap[id] ?? id).join(", ") || "-"}</td>
+                      <td>{entry.instrumentIds.map((id) => instrumentLabelMap[id] ?? id).join(", ") || "-"}</td>
+                      <td>
+                        <button type="button" className="btn-secondary" onClick={() => startEdit(entry)}>
+                          Edit
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}

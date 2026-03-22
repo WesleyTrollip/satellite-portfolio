@@ -55,6 +55,16 @@ public sealed class HoldingsCalculator : IHoldingsCalculator
                 continue;
             }
 
+            if (trade.Side == TradeSide.NonCashAcquisition)
+            {
+                var acquisitionCost = trade.CostBasisMode == CostBasisMode.Custom
+                    ? trade.CustomTotalCost ?? 0m
+                    : 0m;
+                state.Quantity += trade.Quantity;
+                state.TotalCost += acquisitionCost;
+                continue;
+            }
+
             if (state.Quantity < trade.Quantity)
             {
                 throw new InvalidOperationException(

@@ -1,14 +1,23 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { getPriceSnapshots, PriceSnapshotView } from "../../lib/api";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { getInstruments, getPriceSnapshots, getPriceSources, InstrumentView, LookupItem, PriceSnapshotView } from "../../lib/api";
 import { CardSection, EmptyState, FieldLabel, PageHeader, StatusMessage } from "../components/ui";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5014/api";
 
 export default function PricesPage() {
   const [snapshots, setSnapshots] = useState<PriceSnapshotView[]>([]);
+  const [instruments, setInstruments] = useState<InstrumentView[]>([]);
+  const [priceSources, setPriceSources] = useState<LookupItem[]>([]);
   const [instrumentId, setInstrumentId] = useState("");
+  const [upsertInstrumentId, setUpsertInstrumentId] = useState("");
+  const [upsertSourceId, setUpsertSourceId] = useState("");
+  const [upsertDate, setUpsertDate] = useState("");
+  const [upsertClosePrice, setUpsertClosePrice] = useState("");
+  const [editingSnapshot, setEditingSnapshot] = useState<PriceSnapshotView | null>(null);
+  const [lookupsLoading, setLookupsLoading] = useState(true);
+  const [lookupError, setLookupError] = useState("");
   const [status, setStatus] = useState("");
 
   const refresh = async () => {
@@ -17,17 +26,39 @@ export default function PricesPage() {
   };
 
   useEffect(() => {
+    Promise.all([getInstruments(), getPriceSources(true)])
+      .then(([instrumentData, sourceData]) => {
+        setInstruments(instrumentData);
+        setPriceSources(sourceData);
+        setLookupError("");
+      })
+      .catch(() => setLookupError("Failed to load instrument/price source lookup data."))
+      .finally(() => setLookupsLoading(false));
+
     refresh().catch(() => setStatus("Failed to load price snapshots."));
   }, []);
 
+  const instrumentOptions = useMemo(
+    () =>
+      instruments.map((instrument) => {
+        const id = typeof instrument.id === "string" ? instrument.id : instrument.id.value;
+        const label = instrument.name ? `${instrument.symbol} - ${instrument.name}` : instrument.symbol;
+        return { id, label };
+      }),
+    [instruments]
+  );
+
   const upsertPrice = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    if (!upsertInstrumentId || !upsertSourceId) {
+      setStatus("Instrument and source are required.");
+      return;
+    }
     const payload = {
-      instrumentId: form.get("instrumentId"),
-      date: form.get("date"),
-      closePriceAmount: Number(form.get("closePriceAmount")),
-      source: Number(form.get("source"))
+      instrumentId: upsertInstrumentId,
+      date: upsertDate,
+      closePriceAmount: Number(upsertClosePrice),
+      priceSourceLookupId: upsertSourceId
     };
 
     const response = await fetch(`${API_BASE_URL}/prices/snapshots`, {
@@ -38,6 +69,7 @@ export default function PricesPage() {
 
     setStatus(response.ok ? "Price snapshot saved." : "Failed to save price snapshot.");
     if (response.ok) {
+      setEditingSnapshot(null);
       await refresh();
     }
   };
@@ -45,6 +77,22 @@ export default function PricesPage() {
   const filterSnapshots = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await refresh();
+  };
+
+  const startEdit = (snapshot: PriceSnapshotView) => {
+    setEditingSnapshot(snapshot);
+    setUpsertInstrumentId(snapshot.instrumentId);
+    setUpsertSourceId(snapshot.priceSourceLookupId);
+    setUpsertDate(snapshot.date);
+    setUpsertClosePrice(String(snapshot.closePriceAmount));
+  };
+
+  const cancelEdit = () => {
+    setEditingSnapshot(null);
+    setUpsertInstrumentId("");
+    setUpsertSourceId("");
+    setUpsertDate("");
+    setUpsertClosePrice("");
   };
 
   return (
@@ -58,10 +106,24 @@ export default function PricesPage() {
             <div>
               <FieldLabel
                 htmlFor="snapshot-instrument-id"
-                label="Instrument ID"
-                tooltip="GUID of the instrument this EOD price belongs to. Example: 3f8f0d76-1b4a-4cde-9a37-0b9e9d2f4c12"
+                label="Instrument"
+                tooltip="Select the instrument to attach this snapshot to."
               />
-              <input id="snapshot-instrument-id" name="instrumentId" className="input" required />
+              <select
+                id="snapshot-instrument-id"
+                name="instrumentId"
+                className="input"
+                value={upsertInstrumentId}
+                onChange={(e) => setUpsertInstrumentId(e.target.value)}
+                required
+              >
+                <option value="">Select instrument</option>
+                {instrumentOptions.map((instrument) => (
+                  <option key={instrument.id} value={instrument.id}>
+                    {instrument.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <FieldLabel
@@ -69,7 +131,15 @@ export default function PricesPage() {
                 label="Date"
                 tooltip="Market close date for the snapshot. Example: 2026-03-20"
               />
-              <input id="snapshot-date" name="date" type="date" className="input" required />
+              <input
+                id="snapshot-date"
+                name="date"
+                type="date"
+                className="input"
+                value={upsertDate}
+                onChange={(e) => setUpsertDate(e.target.value)}
+                required
+              />
             </div>
             <div>
               <FieldLabel
@@ -83,6 +153,8 @@ export default function PricesPage() {
                 type="number"
                 step="0.01"
                 className="input"
+                value={upsertClosePrice}
+                onChange={(e) => setUpsertClosePrice(e.target.value)}
                 required
               />
             </div>
@@ -90,17 +162,29 @@ export default function PricesPage() {
               <FieldLabel
                 htmlFor="snapshot-source"
                 label="Source"
-                tooltip="Where the close price came from. Choose Manual, Import, or Other. Example: Import"
+                tooltip="Select the managed lookup value that describes the source."
               />
-              <select id="snapshot-source" name="source" defaultValue="1" className="input">
-                <option value="1">Manual</option>
-                <option value="2">Import</option>
-                <option value="3">Other</option>
+              <select
+                id="snapshot-source"
+                name="source"
+                value={upsertSourceId}
+                onChange={(e) => setUpsertSourceId(e.target.value)}
+                className="input"
+              >
+                <option value="">Select source</option>
+                {priceSources.map((source) => (
+                  <option key={source.id} value={source.id}>
+                    {source.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
               <button type="submit" className="btn-primary">
-                Save Snapshot
+                {editingSnapshot ? "Save Snapshot Update" : "Save Snapshot"}
+              </button>
+              <button type="button" className="btn-secondary ml-2" onClick={cancelEdit}>
+                Cancel
               </button>
             </div>
           </form>
@@ -111,15 +195,22 @@ export default function PricesPage() {
             <div>
               <FieldLabel
                 htmlFor="filter-instrument-id"
-                label="Filter Instrument ID"
-                tooltip="Optional GUID filter to show snapshots for one instrument only. Example: 3f8f0d76-1b4a-4cde-9a37-0b9e9d2f4c12"
+                label="Filter Instrument"
+                tooltip="Optional instrument filter for snapshot results."
               />
-              <input
+              <select
                 id="filter-instrument-id"
                 className="input"
                 value={instrumentId}
                 onChange={(e) => setInstrumentId(e.target.value)}
-              />
+              >
+                <option value="">All instruments</option>
+                {instrumentOptions.map((instrument) => (
+                  <option key={instrument.id} value={instrument.id}>
+                    {instrument.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <button type="submit" className="btn-secondary">
@@ -129,6 +220,8 @@ export default function PricesPage() {
           </form>
         </CardSection>
       </div>
+      {lookupsLoading ? <p className="muted">Loading lookup data...</p> : null}
+      {lookupError ? <p className="muted">{lookupError}</p> : null}
 
       <CardSection title="Snapshot Results">
         {snapshots.length === 0 ? (
@@ -139,22 +232,28 @@ export default function PricesPage() {
               <thead>
                 <tr>
                   <th scope="col">Snapshot ID</th>
-                  <th scope="col">Instrument ID</th>
+                  <th scope="col">Instrument</th>
                   <th scope="col">Date</th>
                   <th scope="col" className="text-right">
                     Close Price
                   </th>
                   <th scope="col">Source</th>
+                  <th scope="col">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {snapshots.map((snapshot) => (
-                  <tr key={typeof snapshot.id === "string" ? snapshot.id : snapshot.id.value}>
-                    <td>{typeof snapshot.id === "string" ? snapshot.id : snapshot.id.value}</td>
-                    <td>{typeof snapshot.instrumentId === "string" ? snapshot.instrumentId : snapshot.instrumentId.value}</td>
+                  <tr key={snapshot.id}>
+                    <td>{snapshot.id}</td>
+                    <td>{snapshot.instrumentLabel}</td>
                     <td>{snapshot.date}</td>
                     <td className="text-right">{snapshot.closePriceAmount.toFixed(2)}</td>
-                    <td>{snapshot.source}</td>
+                    <td>{snapshot.priceSourceName}</td>
+                    <td>
+                      <button type="button" className="btn-secondary" onClick={() => startEdit(snapshot)}>
+                        Edit
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

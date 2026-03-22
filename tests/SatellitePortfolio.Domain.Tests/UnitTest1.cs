@@ -46,7 +46,7 @@ public class HoldingsCalculatorTests
                 InstrumentId = instrumentId,
                 Date = new DateOnly(2026, 1, 5),
                 ClosePriceAmount = 130m,
-                Source = PriceSnapshotSource.Manual,
+                PriceSourceLookupId = new PriceSourceLookupId(Guid.NewGuid()),
                 CreatedAt = DateTime.UtcNow
             }
         };
@@ -161,7 +161,7 @@ public class HoldingsCalculatorTests
                 InstrumentId = instrumentId,
                 Date = new DateOnly(2026, 2, 15),
                 ClosePriceAmount = 90m,
-                Source = PriceSnapshotSource.Manual,
+                PriceSourceLookupId = new PriceSourceLookupId(Guid.NewGuid()),
                 CreatedAt = DateTime.UtcNow
             },
             new PriceSnapshot
@@ -170,7 +170,7 @@ public class HoldingsCalculatorTests
                 InstrumentId = instrumentId,
                 Date = new DateOnly(2026, 2, 28),
                 ClosePriceAmount = 110m,
-                Source = PriceSnapshotSource.Manual,
+                PriceSourceLookupId = new PriceSourceLookupId(Guid.NewGuid()),
                 CreatedAt = DateTime.UtcNow
             }
         };
@@ -178,5 +178,77 @@ public class HoldingsCalculatorTests
         var snapshot = calculator.CalculateSnapshot(trades, Array.Empty<CashLedgerEntry>(), prices, new DateTime(2026, 2, 20));
         var holding = Assert.Single(snapshot.Holdings);
         Assert.Equal(90m, holding.MarketValue.Amount);
+    }
+
+    [Fact]
+    public void NonCashAcquisition_WithZeroBasis_IncreasesQuantityWithoutReducingCash()
+    {
+        var instrumentId = new InstrumentId(Guid.NewGuid());
+        var calculator = new HoldingsCalculator();
+        var trades = new[]
+        {
+            new Trade
+            {
+                Id = new TradeId(Guid.NewGuid()),
+                PortfolioId = new PortfolioId(Guid.NewGuid()),
+                InstrumentId = instrumentId,
+                Side = TradeSide.NonCashAcquisition,
+                Quantity = 10m,
+                PriceAmount = 0m,
+                FeesAmount = 0m,
+                CostBasisMode = CostBasisMode.Zero,
+                CustomTotalCost = null,
+                ExecutedAt = new DateTime(2026, 3, 1),
+                CreatedAt = new DateTime(2026, 3, 1)
+            }
+        };
+
+        var snapshot = calculator.CalculateSnapshot(trades, Array.Empty<CashLedgerEntry>(), Array.Empty<PriceSnapshot>(), new DateTime(2026, 3, 2));
+        var holding = Assert.Single(snapshot.Holdings);
+        Assert.Equal(10m, holding.Quantity);
+        Assert.Equal(0m, holding.AverageCost.Amount);
+        Assert.Equal(0m, snapshot.Totals.CashBalance.Amount);
+    }
+
+    [Fact]
+    public void NonCashAcquisition_WithCustomBasis_DrivesRealizedPnlOnSell()
+    {
+        var instrumentId = new InstrumentId(Guid.NewGuid());
+        var calculator = new HoldingsCalculator();
+        var trades = new[]
+        {
+            new Trade
+            {
+                Id = new TradeId(Guid.NewGuid()),
+                PortfolioId = new PortfolioId(Guid.NewGuid()),
+                InstrumentId = instrumentId,
+                Side = TradeSide.NonCashAcquisition,
+                Quantity = 10m,
+                PriceAmount = 0m,
+                FeesAmount = 0m,
+                CostBasisMode = CostBasisMode.Custom,
+                CustomTotalCost = 800m,
+                ExecutedAt = new DateTime(2026, 3, 1),
+                CreatedAt = new DateTime(2026, 3, 1)
+            },
+            new Trade
+            {
+                Id = new TradeId(Guid.NewGuid()),
+                PortfolioId = new PortfolioId(Guid.NewGuid()),
+                InstrumentId = instrumentId,
+                Side = TradeSide.Sell,
+                Quantity = 4m,
+                PriceAmount = 100m,
+                FeesAmount = 0m,
+                ExecutedAt = new DateTime(2026, 3, 2),
+                CreatedAt = new DateTime(2026, 3, 2)
+            }
+        };
+
+        var snapshot = calculator.CalculateSnapshot(trades, Array.Empty<CashLedgerEntry>(), Array.Empty<PriceSnapshot>(), new DateTime(2026, 3, 2));
+        var holding = Assert.Single(snapshot.Holdings);
+        Assert.Equal(6m, holding.Quantity);
+        Assert.Equal(80m, holding.AverageCost.Amount);
+        Assert.Equal(80m, snapshot.Totals.TotalRealizedPnl.Amount);
     }
 }

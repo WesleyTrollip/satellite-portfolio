@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SatellitePortfolio.Infrastructure;
@@ -11,9 +12,11 @@ using SatellitePortfolio.Infrastructure;
 namespace SatellitePortfolio.Infrastructure.Migrations
 {
     [DbContext(typeof(SatellitePortfolioDbContext))]
-    partial class SatellitePortfolioDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260322122617_AddNonCashAcquisitionTrades")]
+    partial class AddNonCashAcquisitionTrades
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

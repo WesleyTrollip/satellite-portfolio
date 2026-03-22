@@ -20,14 +20,25 @@ public class PriceSnapshotServiceTests
         });
 
         var repository = new InMemoryPriceSnapshotRepository();
-        var service = new PriceSnapshotService(repository, instruments, new InMemoryUnitOfWork());
+        var priceSources = new InMemoryPriceSourceLookupRepository();
+        var defaultSource = new PriceSourceLookup
+        {
+            Id = new PriceSourceLookupId(Guid.NewGuid()),
+            Code = "MANUAL",
+            Name = "Manual",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        priceSources.Items.Add(defaultSource);
+        var service = new PriceSnapshotService(repository, instruments, priceSources, new InMemoryUnitOfWork());
 
         var first = await service.UpsertAsync(
-            new UpsertPriceSnapshotRequest(instrumentId.Value, new DateOnly(2026, 3, 18), 250m, PriceSnapshotSource.Manual),
+            new UpsertPriceSnapshotRequest(instrumentId.Value, new DateOnly(2026, 3, 18), 250m, defaultSource.Id.Value),
             CancellationToken.None);
 
         var second = await service.UpsertAsync(
-            new UpsertPriceSnapshotRequest(instrumentId.Value, new DateOnly(2026, 3, 18), 255m, PriceSnapshotSource.Manual),
+            new UpsertPriceSnapshotRequest(instrumentId.Value, new DateOnly(2026, 3, 18), 255m, defaultSource.Id.Value),
             CancellationToken.None);
 
         Assert.Single(repository.Items);

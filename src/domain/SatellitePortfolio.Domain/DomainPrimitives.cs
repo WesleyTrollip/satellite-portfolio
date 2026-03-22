@@ -10,6 +10,12 @@ public readonly record struct CashEntryId(Guid Value);
 
 public readonly record struct PriceSnapshotId(Guid Value);
 
+public readonly record struct SectorLookupId(Guid Value);
+
+public readonly record struct PriceSourceLookupId(Guid Value);
+
+public readonly record struct CorrectionReasonLookupId(Guid Value);
+
 public readonly record struct JournalEntryId(Guid Value);
 
 public readonly record struct ThesisId(Guid Value);

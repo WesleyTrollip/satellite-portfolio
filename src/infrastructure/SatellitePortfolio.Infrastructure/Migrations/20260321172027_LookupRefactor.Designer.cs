@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SatellitePortfolio.Infrastructure;
@@ -11,9 +12,11 @@ using SatellitePortfolio.Infrastructure;
 namespace SatellitePortfolio.Infrastructure.Migrations
 {
     [DbContext(typeof(SatellitePortfolioDbContext))]
-    partial class SatellitePortfolioDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260321172027_LookupRefactor")]
+    partial class LookupRefactor
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -424,14 +427,8 @@ namespace SatellitePortfolio.Infrastructure.Migrations
                     b.Property<Guid?>("CorrectionReasonLookupId")
                         .HasColumnType("uuid");
 
-                    b.Property<int?>("CostBasisMode")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal?>("CustomTotalCost")
-                        .HasColumnType("numeric(20,4)");
 
                     b.Property<DateTime>("ExecutedAt")
                         .HasColumnType("timestamp with time zone");

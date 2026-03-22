@@ -8,6 +8,37 @@ public interface IInstrumentRepository
     Task<Instrument?> GetByIdAsync(InstrumentId instrumentId, CancellationToken cancellationToken);
     Task AddAsync(Instrument instrument, CancellationToken cancellationToken);
     Task UpdateAsync(Instrument instrument, CancellationToken cancellationToken);
+    Task DeleteAsync(Instrument instrument, CancellationToken cancellationToken);
+}
+
+public interface ISectorLookupRepository
+{
+    Task<IReadOnlyCollection<SectorLookup>> ListAsync(string? search, bool? isActive, int skip, int take, CancellationToken cancellationToken);
+    Task<SectorLookup?> GetByIdAsync(SectorLookupId sectorLookupId, CancellationToken cancellationToken);
+    Task<SectorLookup?> GetByCodeAsync(string code, CancellationToken cancellationToken);
+    Task AddAsync(SectorLookup sectorLookup, CancellationToken cancellationToken);
+    Task UpdateAsync(SectorLookup sectorLookup, CancellationToken cancellationToken);
+    Task DeleteAsync(SectorLookup sectorLookup, CancellationToken cancellationToken);
+}
+
+public interface IPriceSourceLookupRepository
+{
+    Task<IReadOnlyCollection<PriceSourceLookup>> ListAsync(string? search, bool? isActive, int skip, int take, CancellationToken cancellationToken);
+    Task<PriceSourceLookup?> GetByIdAsync(PriceSourceLookupId priceSourceLookupId, CancellationToken cancellationToken);
+    Task<PriceSourceLookup?> GetByCodeAsync(string code, CancellationToken cancellationToken);
+    Task AddAsync(PriceSourceLookup priceSourceLookup, CancellationToken cancellationToken);
+    Task UpdateAsync(PriceSourceLookup priceSourceLookup, CancellationToken cancellationToken);
+    Task DeleteAsync(PriceSourceLookup priceSourceLookup, CancellationToken cancellationToken);
+}
+
+public interface ICorrectionReasonLookupRepository
+{
+    Task<IReadOnlyCollection<CorrectionReasonLookup>> ListAsync(string? search, bool? isActive, int skip, int take, CancellationToken cancellationToken);
+    Task<CorrectionReasonLookup?> GetByIdAsync(CorrectionReasonLookupId correctionReasonLookupId, CancellationToken cancellationToken);
+    Task<CorrectionReasonLookup?> GetByCodeAsync(string code, CancellationToken cancellationToken);
+    Task AddAsync(CorrectionReasonLookup correctionReasonLookup, CancellationToken cancellationToken);
+    Task UpdateAsync(CorrectionReasonLookup correctionReasonLookup, CancellationToken cancellationToken);
+    Task DeleteAsync(CorrectionReasonLookup correctionReasonLookup, CancellationToken cancellationToken);
 }
 
 public interface ITradeRepository
@@ -59,6 +90,7 @@ public interface IJournalLinkRepository
     Task AddInstrumentLinksAsync(IEnumerable<JournalEntryInstrumentLink> links, CancellationToken cancellationToken);
     Task RemoveThesisLinksAsync(JournalEntryId journalEntryId, CancellationToken cancellationToken);
     Task RemoveInstrumentLinksAsync(JournalEntryId journalEntryId, CancellationToken cancellationToken);
+    Task<int> CountByInstrumentIdAsync(InstrumentId instrumentId, CancellationToken cancellationToken);
 }
 
 public interface IAlertEventRepository
