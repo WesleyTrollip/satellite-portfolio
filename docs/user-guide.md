@@ -1,378 +1,326 @@
-# Satellite Portfolio UI User Guide
+# Satellite Portfolio Website User Guide
 
-This guide explains how to run and use the current MVP UI.
+This guide is for everyday users of the website. It explains what each section is for, what the key numbers mean, and how to use the app as a decision-support tracker.
 
-## 1) Before You Start
+## 1) What This Website Is For
 
-The UI depends on the API. Start both in this order:
+Satellite Portfolio helps you:
 
-1. Start PostgreSQL (Docker or local install)
-2. Start API
-3. Start web app
+- track your positions and cash
+- monitor performance (realized and unrealized PnL)
+- review concentration risk
+- document your thinking with journal and thesis notes
+- make better, more disciplined decisions over time
 
-### API URL used by the web app
+It does **not** place trades with brokers. It is a decision-support tool, not an execution platform.
 
-Set `NEXT_PUBLIC_API_BASE_URL` in `src/web/satellite-portfolio-web/.env.local`.
+## 2) Core Navigation
 
-Example with IIS Express HTTP:
+Top navigation sections:
 
-```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:62356/api
-```
+- Overview
+- Holdings
+- Trades
+- Prices
+- Journal
+- Rules
+- Admin
 
-Example with Kestrel:
+## 3) How To Read The Main Numbers
 
-```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:5014/api
-```
+These are the core formulas used by the application.
 
-## 2) Running the Application
+### Average Cost (per open position)
 
-### Start API
+Average Cost per Unit = `Total Position Cost / Current Quantity`
 
-Use one of:
+Example:
 
-- Visual Studio (F5) with your preferred profile
-- CLI:
-  - `dotnet run --project src/api/SatellitePortfolio.Api/SatellitePortfolio.Api.csproj`
+- You buy 10 shares at 100 with 2 fees: total cost = 1,002
+- You buy 5 shares at 110 with 1 fee: total cost = 551
+- Combined quantity = 15
+- Combined cost = 1,553
+- Average cost = 1,553 / 15 = 103.53
 
-Swagger is available at:
+### Realized PnL (when you sell)
 
-- `http://localhost:5014/swagger` (CLI default profile)
-- or your IIS Express URL in `launchSettings.json`
+Realized PnL = `Net Sale Proceeds - Cost Basis Of Sold Quantity`
 
-### Start web UI
+Where:
 
-From `src/web/satellite-portfolio-web`:
+- Net Sale Proceeds = `(Sell Quantity x Sell Price) - Sell Fees`
+- Cost Basis Of Sold Quantity = `Sell Quantity x Current Average Cost`
 
-- `npm install`
-- `npm run dev`
+Example:
 
-Open:
+- You hold 15 shares with average cost 103.53
+- You sell 5 shares at 120 with 1 fee
+- Net sale proceeds = (5 x 120) - 1 = 599
+- Sold cost basis = 5 x 103.53 = 517.65
+- Realized PnL = 599 - 517.65 = 81.35
 
-- `http://localhost:3000`
+### Unrealized PnL (open position only)
 
-## 3) Top Navigation
+Unrealized PnL = `Market Value - Current Total Cost`
 
-Current UI pages:
+Where:
 
-- **Overview**
-- **Holdings**
-- **Trades**
-- **Prices**
-- **Journal**
-- **Rules**
+- Market Value = `Open Quantity x Latest End-Of-Day Price`
 
-## 4) Page-by-Page Guide
+Example:
 
-## Overview
+- Remaining quantity = 10
+- Latest EOD price = 118
+- Market value = 1,180
+- Remaining cost = 1,035.35
+- Unrealized PnL = 1,180 - 1,035.35 = 144.65
 
-What it shows:
+### Allocation %
 
-- Current portfolio totals:
-  - portfolio value
-  - cash balance
-  - total market value
-  - realized PnL
-  - unrealized PnL
-- Current active alerts
-- Month-end snapshot summary
+Allocation % = `Position Market Value / (Total Market Value + Cash Balance)`
 
-Backed by:
+Important: cash is included in the denominator.
 
-- `GET /api/portfolio/overview`
-- `GET /api/portfolio/monthly`
+Example:
 
-## Holdings
+- Position A market value = 1,180
+- All positions total market value = 5,000
+- Cash balance = 2,000
+- Denominator = 7,000
+- Position A allocation = 1,180 / 7,000 = 16.86%
 
-What it shows per instrument:
+### Missing Price Behavior
 
-- quantity
-- average cost
-- market value
-- unrealized PnL
-- allocation %
-- pricing status
-- linked thesis titles
+If no end-of-day price is available on or before the valuation date:
 
-Missing price handling:
+- market value is treated as 0 for that line
+- unrealized PnL is shown as 0 for that line
+- allocation % for that line is 0
+- the UI flags that the price is missing
 
-- If no price exists for as-of valuation, the row shows explicit missing-price text.
+## 4) Page-By-Page Guide
 
-Backed by:
+### Overview
 
-- `GET /api/holdings`
-- `GET /api/theses`
+What it is:
 
-## Trades
+- Your portfolio dashboard.
 
-Purpose:
+What it is used for:
 
-- Create manual trades
-- Submit auditable trade corrections
-- View history and correction chains
+- Quick check of total value, cash, market value, realized and unrealized PnL.
+- Recent alert visibility.
+- Month-end snapshot summary.
 
-### Create Trade
+How this helps:
 
-Required fields:
+- Gives a fast "am I on track?" view before deeper analysis.
 
-- Instrument (lookup select)
-- Side (`Buy` or `Sell`)
-- Quantity
-- Price
-- Fees
-- Executed At
+How often to check:
 
-### Correct Trade
+- Daily for active monitoring.
+- Weekly for trend awareness.
+- Month-end for formal review.
 
-Required fields:
+### Holdings
 
-- Selected trade row (`Edit` action)
-- Corrected quantity/price/fees/executedAt
-- Correction reason (lookup select)
+What it is:
 
-How corrections appear:
+- Your current open positions table.
 
-- UI shows grouped correction audit chains:
-  - reversal entry
-  - replacement entry
-  - selected correction reason label
+What it is used for:
 
-Backed by:
+- Reviewing quantity, average cost, market value, unrealized PnL, allocation, and pricing status by instrument.
 
-- `GET /api/trades`
-- `POST /api/trades`
-- `POST /api/trades/{tradeId}/corrections`
+How this helps:
 
-## Prices
+- Shows concentration and where gains/losses are currently sitting.
+- Helps you identify stale or missing pricing data.
 
-Purpose:
+How often to check:
 
-- Enter or update end-of-day (EOD) prices
-- Filter and view snapshot history
+- Daily or after price updates.
 
-### Add / Update Snapshot
+### Trades
 
-Required fields:
+What it is:
 
-- Instrument (lookup select)
-- Date
-- Close Price
-- Source (lookup select)
+- Your manual transaction history and correction workflow.
 
-Behavior:
+What it is used for:
 
-- Upsert is idempotent by `(instrumentId, date)`.
-- Posting same instrument/date updates existing snapshot.
-- Use row-level `Edit` in snapshot results to preload update form values.
+- Entering buys, sells, and non-cash acquisitions.
+- Correcting past trade records with an auditable chain (rather than silent overwrite).
 
-Backed by:
+How this helps:
 
-- `GET /api/prices/snapshots`
-- `POST /api/prices/snapshots`
+- Keeps performance and cost basis math trustworthy.
+- Preserves a clear audit trail when corrections are needed.
 
-## Journal
+### Non-Cash Acquisition (important)
 
-Purpose:
+Use this for events where quantity arrives without a normal cash buy (for example grants or transfers).
 
-- Create theses
-- Create journal entries
-- Link journals to thesis/instrument context
+Cost basis modes:
 
-### Create Thesis
+- **Zero basis**: adds quantity with zero added cost basis.
+- **Custom basis**: adds quantity and a custom total cost basis.
 
-Fields:
+Why it matters:
 
-- title
-- body
-- status (`Active` / `Retired`)
-- optional linked instrument (lookup select)
+- This choice changes future average cost and realized PnL when you later sell.
 
-### Create / Update Journal Entry
+### Prices
 
-Fields:
+What it is:
 
-- occurredAt
-- title
-- body
-- tags
-- optional linked thesis (lookup select)
-- optional linked instrument (lookup select)
+- End-of-day (EOD) price maintenance.
 
-Update behavior:
+What it is used for:
 
-- Select a row in `Journal Entries` and click `Edit`.
-- The update form preloads existing values.
-- Use `Cancel` to reset edit mode.
+- Adding/updating daily close prices by instrument and date.
 
-Backed by:
+How this helps:
 
-- `GET /api/journal`
-- `POST /api/journal`
-- `PUT /api/journal/{journalEntryId}`
-- `GET /api/theses`
-- `POST /api/theses`
-- `PUT /api/theses/{thesisId}`
+- Portfolio valuation, unrealized PnL, and allocation depend on current EOD pricing.
 
-## Rules
+How often to check:
 
-Purpose:
+- At least each market day you want valuations to reflect.
 
-- Configure risk rules
-- View current alerts
+### Journal
 
-### Rule types
+What it is:
 
-- Max position size
-- Max sector concentration
-- Max drawdown
+- Your investing decision journal and thesis tracker.
 
-### Create / Update Rule
+What it is used for:
 
-Fields:
+- Capturing your reason for a decision before and after trades.
+- Linking notes to instruments or specific theses.
+- Recording what happened versus what you expected.
 
-- rule type
-- enabled flag
-- parameters JSON
+How this helps:
 
-Update behavior:
+- Reduces emotional, memory-based decision making.
+- Builds a personal evidence base of what works and what does not.
+- Improves consistency and discipline over time.
 
-- Update always starts from `Current Rules` table row `Edit`.
-- Selected rule is preloaded into the update form.
-- Use `Cancel` to clear the selection.
+Suggested cadence:
 
-Example `parametersJson`:
+- **Before entry**: write thesis, risks, invalidation condition.
+- **After entry**: note execution quality and conviction level.
+- **Weekly**: short review of active theses and new information.
+- **After major move**: explain whether thesis changed.
+- **Month-end**: summarize lessons learned and behavior patterns.
 
-- Position size: `{"maxPct":0.10}`
-- Sector concentration: `{"maxPct":0.25}`
-- Drawdown: `{"maxDrawdownPct":0.15}`
+Example journal pattern:
 
-Backed by:
+1. Thesis title: "Small-cap quality compounder"
+2. Entry note:
+   - why now
+   - key assumptions
+   - top 3 risks
+   - what would prove me wrong
+3. Follow-up notes:
+   - earnings reaction
+   - allocation change rationale
+   - whether thesis is still intact
+4. Exit note:
+   - why position was closed
+   - what was learned
+   - would you repeat the process
 
-- `GET /api/rules`
-- `POST /api/rules`
-- `PUT /api/rules/{ruleId}`
-- `GET /api/alerts/current`
+### Rules
 
-## 5) Typical User Workflow
+What it is:
 
-Recommended sequence:
+- Risk thresholds and alert visibility.
 
-1. Create/maintain lookup data (sectors, price sources, correction reasons)
-2. Add instruments (linked to sector lookup where applicable)
-3. Add initial cash entries
-4. Create buy/sell trades from instrument lookup selection
-5. Enter EOD prices using instrument + source lookup selections
-6. Review Overview and Holdings
-7. Add journal/thesis context via lookup selections
-8. Configure risk rules and monitor alerts
+What it is used for:
 
-## 6) Demo Data (Optional)
+- Defining limits for:
+  - max position size
+  - max sector concentration
+  - max drawdown
 
-You can seed sample data after API is running:
+How this helps:
 
-- `pwsh ./scripts/seed-demo-data.ps1`
+- Creates objective guardrails before risk gets too large.
+- Helps avoid concentration creep.
 
-What it seeds:
+How to think about each rule:
 
-- instruments
-- initial cash
-- sample trades
-- sample price snapshots
-- baseline rule
+- **Max position size**: checks if your largest priced position is above limit.
+- **Max sector concentration**: checks if your largest sector weight is above limit.
+- **Max drawdown**: checks if drawdown from equity-curve peak exceeds limit.
 
-## 7) Troubleshooting
+### Admin
 
-## UI shows fetch errors (500 on `/`)
+What it is:
 
-Common cause:
+- Master data management page.
 
-- API base URL mismatch in `.env.local`
+What it is used for:
 
-Fix:
+- Maintaining sectors, price sources, correction reasons, and instruments.
 
-- Verify `NEXT_PUBLIC_API_BASE_URL` matches your running API port/profile.
-- Restart web dev server after changing `.env.local`.
+How this helps:
 
-## HTTPS certificate errors in web server-side fetch
+- Keeps dropdowns clean and consistent across Trades, Prices, and Journal.
+- Prevents data quality issues caused by inconsistent labels.
 
-Symptom:
+Who should use it:
 
-- `DEPTH_ZERO_SELF_SIGNED_CERT`
+- Usually the portfolio owner or maintainer, not every day for all users.
 
-Fix options:
+## 5) Practical Operating Rhythm
 
-- Use HTTP base URL for IIS Express profile, or
-- Trust dev certs and use matching HTTPS endpoint.
+Use this as a simple routine.
 
-## Empty dashboard/holdings
+### Daily (or market days)
 
-Expected if no data exists. Add:
+1. Update EOD prices.
+2. Check Overview for major changes and alerts.
+3. Review Holdings allocation and missing-price flags.
+4. Add short Journal notes for important events.
 
-- cash entries
-- trades
-- prices
+### Weekly
 
-## 8) Current MVP Notes
+1. Review top winners/losers.
+2. Review concentration by position and sector.
+3. Update or retire theses if assumptions changed.
+4. Record one process improvement note in Journal.
 
-- This is a decision-support tracker, not an execution platform.
-- Corrections are auditable and shown as chain events, not silent overwrites.
-- Normal user workflows avoid manual GUID entry; IDs are selected from lookup-backed lists/tables.
+### Month-End
 
-## 9) Lookup Management
+1. Review month-end snapshot.
+2. Summarize realized and unrealized PnL drivers.
+3. Review alerts and decide whether thresholds need tuning.
+4. Write a month-end Journal reflection.
 
-Lookup values are managed through API CRUD and consumed by the UI. Records can be updated to inactive (`isActive=false`) or deleted when unreferenced.
+## 6) Common Questions
 
-### Admin UI
+### "Why is allocation lower than expected?"
 
-Use the `Admin` page in the top navigation to manage:
+Because cash is included in the denominator. Large idle cash lowers every position's allocation %.
 
-- sectors
-- price sources
-- correction reasons
-- instruments
+### "Why do I see missing-price text?"
 
-Each table supports:
+No valid EOD price exists on or before the selected valuation date.
 
-- row `Edit` to preload form fields
-- `Save` to update
-- `Cancel` to reset form state
-- `Delete` to remove records when unreferenced
+### "Why did realized PnL change after a correction?"
 
-Delete behavior:
+Trade corrections replace prior economic details using an auditable chain, so historical cost basis/proceeds calculations are recomputed from corrected values.
 
-- Deletes are hard-delete attempts.
-- If a record is still referenced (for example by trades, prices, journal, or theses), the API returns conflict and the UI shows the message.
+### "Can I use this to auto-trade?"
 
-### Sector lookups
+No. The product is intentionally scoped for tracking, analysis, and decision support only.
 
-- `GET /api/lookups/sectors?search=&isActive=&skip=&take=`
-- `GET /api/lookups/sectors/{id}`
-- `POST /api/lookups/sectors`
-- `PUT /api/lookups/sectors/{id}`
-- `DELETE /api/lookups/sectors/{id}` (hard delete, blocked when referenced)
+## 7) Good Data Hygiene Tips
 
-### Price source lookups
-
-- `GET /api/lookups/price-sources?search=&isActive=&skip=&take=`
-- `GET /api/lookups/price-sources/{id}`
-- `POST /api/lookups/price-sources`
-- `PUT /api/lookups/price-sources/{id}`
-- `DELETE /api/lookups/price-sources/{id}` (hard delete, blocked when referenced)
-
-### Correction reason lookups
-
-- `GET /api/lookups/correction-reasons?search=&isActive=&skip=&take=`
-- `GET /api/lookups/correction-reasons/{id}`
-- `POST /api/lookups/correction-reasons`
-- `PUT /api/lookups/correction-reasons/{id}`
-- `DELETE /api/lookups/correction-reasons/{id}` (hard delete, blocked when referenced)
-
-### Instruments (master data)
-
-- `GET /api/instruments`
-- `GET /api/instruments/{instrumentId}`
-- `POST /api/instruments`
-- `PUT /api/instruments/{instrumentId}`
-- `DELETE /api/instruments/{instrumentId}` (hard delete, blocked when referenced)
-
+- Keep prices current so valuation metrics remain meaningful.
+- Enter fees accurately; they directly affect realized PnL.
+- Use Journal notes at decision points, not only after outcomes.
+- Use clear rule thresholds and revisit them on a schedule.
+- Keep instrument and lookup metadata tidy in Admin.
