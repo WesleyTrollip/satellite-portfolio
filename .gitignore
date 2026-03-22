@@ -4,6 +4,9 @@ obj/
 *.user
 *.suo
 *.userprefs
+.tmp/
+debug-*.log
+src/api/SatellitePortfolio.Api/debug-*.log
 
 # Build outputs
 **/bin/
