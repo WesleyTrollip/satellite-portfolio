@@ -1,3 +1,23 @@
-/bin
-/obj
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userprefs
+.tmp/
+debug-*.log
+src/api/SatellitePortfolio.Api/debug-*.log
+
+# Build outputs
+**/bin/
+**/obj/
+**/.next/
+**/node_modules/
+
+# Environment and local config
 .env
+*.env.local
+
+# Rider / VSCode / misc
+.idea/
+.vscode/
