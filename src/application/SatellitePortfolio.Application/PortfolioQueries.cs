@@ -63,7 +63,7 @@ public sealed class PortfolioQueryService(
 {
     public async Task<PortfolioOverviewView> GetOverviewAsync(DateTime? asOf, CancellationToken cancellationToken)
     {
-        var effectiveAsOf = asOf ?? DateTime.UtcNow;
+        var effectiveAsOf = asOf ?? EndOfUtcDay(DateTime.UtcNow);
         var allInstruments = await instruments.ListAsync(cancellationToken);
         var allSectors = await sectors.ListAsync(null, true, 0, 2000, cancellationToken);
         var allTrades = await trades.ListAllAsync(cancellationToken);
@@ -99,6 +99,21 @@ public sealed class PortfolioQueryService(
             alertViews);
     }
 
+    private static DateTime EndOfUtcDay(DateTime utcNow)
+    {
+        var normalized = utcNow.Kind == DateTimeKind.Utc
+            ? utcNow
+            : utcNow.ToUniversalTime();
+        return new DateTime(
+            normalized.Year,
+            normalized.Month,
+            normalized.Day,
+            23,
+            59,
+            59,
+            DateTimeKind.Utc);
+    }
+
     public async Task<IReadOnlyCollection<HoldingView>> GetHoldingsAsync(DateTime? asOf, CancellationToken cancellationToken)
     {
         var effectiveAsOf = asOf ?? DateTime.UtcNow;
@@ -108,7 +123,9 @@ public sealed class PortfolioQueryService(
         var allCash = await cashEntries.ListAllAsync(cancellationToken);
         var allPrices = await prices.ListAllAsync(cancellationToken);
         var snapshot = holdingsCalculator.CalculateSnapshot(allTrades, allCash, allPrices, effectiveAsOf);
-        return MapHoldings(snapshot.Holdings, allInstruments, allSectors);
+        var holdings = MapHoldings(snapshot.Holdings, allInstruments, allSectors);
+
+        return holdings;
     }
 
     public async Task<HoldingView?> GetHoldingAsync(InstrumentId instrumentId, DateTime? asOf, CancellationToken cancellationToken)

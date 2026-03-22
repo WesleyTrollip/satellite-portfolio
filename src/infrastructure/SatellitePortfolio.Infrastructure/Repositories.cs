@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SatellitePortfolio.Application;
 using SatellitePortfolio.Domain;
-using System.Text.Json;
 
 namespace SatellitePortfolio.Infrastructure;
 
@@ -415,73 +414,7 @@ public sealed class PortfolioUnitOfWork(SatellitePortfolioDbContext dbContext) :
 {
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
-        var dateTimeStates = dbContext.ChangeTracker
-            .Entries()
-            .Where(e => e.State is EntityState.Added or EntityState.Modified)
-            .SelectMany(e => e.Properties
-                .Where(p => p.Metadata.ClrType == typeof(DateTime))
-                .Select(p => new
-                {
-                    entity = e.Entity.GetType().Name,
-                    state = e.State.ToString(),
-                    property = p.Metadata.Name,
-                    value = p.CurrentValue is DateTime dt ? dt : default,
-                    kind = p.CurrentValue is DateTime kindDt ? kindDt.Kind.ToString() : "N/A"
-                }))
-            .ToArray();
-
-        #region agent log
-        DebugRuntimeLogger.Log(
-            hypothesisId: "H3",
-            location: "PortfolioUnitOfWork.SaveChangesAsync",
-            message: "DateTime values before EF SaveChanges",
-            data: new { dateTimeStates });
-        #endregion
-
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            #region agent log
-            DebugRuntimeLogger.Log(
-                hypothesisId: "H4",
-                location: "PortfolioUnitOfWork.SaveChangesAsync",
-                message: "SaveChanges exception during trade persistence",
-                data: new
-                {
-                    exceptionType = ex.GetType().FullName,
-                    ex.Message,
-                    innerExceptionType = ex.InnerException?.GetType().FullName,
-                    innerExceptionMessage = ex.InnerException?.Message,
-                    dateTimeStates
-                });
-            #endregion
-            throw;
-        }
-    }
-}
-
-internal static class DebugRuntimeLogger
-{
-    private const string LogPath = "debug-fbcfbe.log";
-
-    public static void Log(string hypothesisId, string location, string message, object data)
-    {
-        var payload = new
-        {
-            sessionId = "fbcfbe",
-            runId = Guid.NewGuid().ToString("N"),
-            hypothesisId,
-            location,
-            message,
-            data,
-            timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-        };
-
-        var line = JsonSerializer.Serialize(payload);
-        File.AppendAllText(LogPath, line + Environment.NewLine);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }
 

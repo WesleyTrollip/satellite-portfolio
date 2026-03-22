@@ -6,17 +6,15 @@ This guide is for technical users who need to run, test, and host the applicatio
 
 For the current MVP, the most practical and reliable setup is:
 
-1. Run PostgreSQL in Docker.
-2. Run the API with Kestrel (`dotnet run`).
-3. Run the web app with Next.js dev server (`npm run dev`).
-4. Run the Risk worker when you need automatic rule evaluation.
-5. Use the Market Data worker only if you want heartbeat logging (it is MVP no-op).
+1. Run the full application stack with Docker Compose.
+2. Use the default compose file for always-on, production-like local hosting.
+3. Use the dev compose overlay only when you want hot reload.
 
 Why this is recommended:
 
-- Lowest setup friction.
-- Uses the repo's current run paths directly.
-- Avoids early IIS/publish complexity unless you specifically need it.
+- Single startup command.
+- Consistent connection strings and URL wiring across services.
+- Auto-restart behavior after machine reboot when Docker Desktop auto-start is enabled.
 
 ## 2) Prerequisites
 
@@ -196,20 +194,47 @@ pwsh ./scripts/test.ps1 -Watch
 
 ### Current state in this repository
 
-- Docker support currently covers PostgreSQL only.
-- No full production-style Dockerfiles/compose setup for API, web, and workers is included yet.
-- IIS Express profile is included for local debugging.
+- Full Docker Compose support is available for:
+  - PostgreSQL
+  - API
+  - Web
+  - Risk worker
+  - Market Data worker
+- A development compose overlay is included for hot reload workflows.
+- IIS Express profile remains available for local debugging, but is optional.
 
-### A) Best practical local hosting setup
+### A) Recommended always-on local hosting (production-like)
 
-For most local use, prefer:
+From repo root:
 
-- PostgreSQL in Docker
-- API via Kestrel process
-- Web via `npm run dev` (or `npm run build` + `npm run start` for a production-like Next.js run)
-- Risk worker as separate background process
+```powershell
+docker compose -f infra/docker/docker-compose.yml up -d --build
+```
 
-This gives clear logs, easy restart, and minimal packaging overhead.
+Stop:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yml down
+```
+
+Logs:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yml logs -f
+```
+
+Endpoints:
+
+- Web: `http://localhost:3000`
+- API Swagger: `http://localhost:5014/swagger`
+- API base: `http://localhost:5014/api`
+- PostgreSQL: `localhost:5432`
+
+Notes:
+
+- API and workers use the same `ConnectionStrings__PortfolioDb` value via compose env.
+- API CORS allows `http://localhost:3000`.
+- API applies EF Core migrations on startup.
 
 ### B) Local IIS setup (manual)
 
@@ -231,34 +256,44 @@ Important:
 - This repo does not currently provide a one-click IIS publish script or full IIS reverse-proxy configuration.
 - Treat local IIS as an advanced, manual setup path.
 
-### C) Dockerized app stack (future-oriented)
+### C) Development mode with hot reload (optional)
 
-If you want full container hosting on laptop:
+From repo root:
 
-- Add Dockerfiles for API, web, and workers.
-- Add compose services for each app component.
-- Add environment wiring for API URL and DB connection strings.
+```powershell
+docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.dev.yml up --build
+```
 
-Until that exists, Docker is best used for PostgreSQL only.
+Stop:
+
+```powershell
+docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.dev.yml down
+```
+
+In dev mode:
+
+- API runs via `dotnet watch`.
+- Web runs via `next dev`.
+- Workers run via `dotnet watch`.
 
 ## 12) Troubleshooting
 
 ### Web fetch errors / empty page data
 
-- Check `NEXT_PUBLIC_API_BASE_URL` in `.env.local`.
-- Confirm API is running and reachable at `/api/...`.
-- Restart `npm run dev` after `.env.local` changes.
+- Confirm containers are running: `docker compose -f infra/docker/docker-compose.yml ps`
+- Check web logs: `docker compose -f infra/docker/docker-compose.yml logs -f web`
+- Verify API is reachable at `http://localhost:5014/swagger`.
 
 ### API starts but DB errors occur
 
 - Most common issue is connection string mismatch.
-- Verify API and worker both use the same `ConnectionStrings__PortfolioDb`.
-- Verify Docker Postgres credentials if using compose defaults.
+- Verify API and worker containers use the same `ConnectionStrings__PortfolioDb`.
+- Verify PostgreSQL is healthy: `docker compose -f infra/docker/docker-compose.yml ps postgres`
 
 ### CORS issues from browser
 
-- Development CORS allows `http://localhost:3000` by default.
-- If web runs on a different origin/port, update API CORS config.
+- Compose config sets `Cors__AllowedOrigins__0=http://localhost:3000`.
+- If you map web to a different origin/port, update API CORS env accordingly.
 
 ### HTTPS or self-signed cert issues
 

@@ -2,6 +2,7 @@ services:
   postgres:
     image: postgres:16
     container_name: satellite_portfolio_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: satellite
       POSTGRES_PASSWORD: satellite
@@ -10,6 +11,75 @@ services:
       - "5432:5432"
     volumes:
       - satellite_portfolio_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U satellite -d satellite_portfolio"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      context: ../..
+      dockerfile: src/api/SatellitePortfolio.Api/Dockerfile
+    container_name: satellite_portfolio_api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__PortfolioDb: Host=postgres;Port=5432;Database=satellite_portfolio;Username=satellite;Password=satellite
+      Cors__AllowedOrigins__0: http://localhost:3000
+    ports:
+      - "5014:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  web:
+    build:
+      context: ../..
+      dockerfile: src/web/satellite-portfolio-web/Dockerfile
+    container_name: satellite_portfolio_web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:5014/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1));\""]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  risk-worker:
+    build:
+      context: ../..
+      dockerfile: src/workers/SatellitePortfolio.RiskWorker/Dockerfile
+    container_name: satellite_portfolio_risk_worker
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__PortfolioDb: Host=postgres;Port=5432;Database=satellite_portfolio;Username=satellite;Password=satellite
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  marketdata-worker:
+    build:
+      context: ../..
+      dockerfile: src/workers/SatellitePortfolio.MarketDataWorker/Dockerfile
+    container_name: satellite_portfolio_marketdata_worker
+    restart: unless-stopped
 
 volumes:
   satellite_portfolio_pgdata:

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SatellitePortfolio.Application;
 using SatellitePortfolio.Domain;
-using System.Text.Json;
 
 namespace SatellitePortfolio.Api.Controllers;
 
@@ -60,20 +59,6 @@ public sealed class TradesController(
     [HttpPost]
     public async Task<ActionResult<Trade>> Create([FromBody] CreateTradeDto request, CancellationToken cancellationToken)
     {
-        #region agent log
-        DebugRuntimeLogger.Log(
-            hypothesisId: "H1",
-            location: "TradesController.Create",
-            message: "Incoming create trade request datetime",
-            data: new
-            {
-                executedAt = request.ExecutedAt,
-                executedAtKind = request.ExecutedAt.Kind.ToString(),
-                instrumentId = request.InstrumentId,
-                side = request.Side.ToString()
-            });
-        #endregion
-
         var trade = await service.CreateAsync(
             new CreateTradeRequest(
                 new InstrumentId(request.InstrumentId),
@@ -152,26 +137,4 @@ public sealed record TradeListItemDto(
     bool IsCorrectionReversal,
     Guid? CorrectionReasonLookupId,
     string? CorrectionReasonName);
-
-internal static class DebugRuntimeLogger
-{
-    private const string LogPath = "debug-fbcfbe.log";
-
-    public static void Log(string hypothesisId, string location, string message, object data)
-    {
-        var payload = new
-        {
-            sessionId = "fbcfbe",
-            runId = Guid.NewGuid().ToString("N"),
-            hypothesisId,
-            location,
-            message,
-            data,
-            timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-        };
-
-        var line = JsonSerializer.Serialize(payload);
-        File.AppendAllText(LogPath, line + Environment.NewLine);
-    }
-}
 
